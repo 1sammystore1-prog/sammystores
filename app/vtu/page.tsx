@@ -6,24 +6,38 @@ import Sidebar from '@/components/Sidebar';
 export default function VtuPage() {
   const [network, setNetwork] = useState('mtn');
   const [phone, setPhone] = useState('');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState('100');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('');
+  const [balance, setBalance] = useState(0);
 
   const handlePurchase = async () => {
     setLoading(true);
     setMsg('');
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setMsgType('error');
+      setMsg('Please login to buy airtime.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/vtu/purchase', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ phone, network, planId: amount })
       });
       const data = await res.json();
       if (data.success) {
         setMsgType('success');
-        setMsg('Transaction Successful!');
+        setMsg(data.message);
+        setBalance(data.newBalance);
       } else {
         setMsgType('error');
         setMsg(data.error || 'Transaction Failed');
@@ -44,6 +58,7 @@ export default function VtuPage() {
           <div className="mb-8">
             <p className="terminal-text text-sm mb-2">{`> MODULE: VTU_SERVICES`}</p>
             <h1 className="text-3xl md:text-4xl font-bold text-[#e0e0e0]">AIRTIME & DATA</h1>
+            {balance > 0 && <p className="text-[#00ff88] font-mono mt-2">Current Balance: ₦{balance}</p>}
           </div>
           <div className="card-dark max-w-2xl">
             <div className="mb-6">
@@ -61,7 +76,7 @@ export default function VtuPage() {
             </div>
             <div className="mb-6">
               <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> AMOUNT (NAIRA)`}</label>
-              <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="500" className="input-dark" />
+              <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="input-dark" />
             </div>
             <button onClick={handlePurchase} disabled={loading} className="btn-neon-green w-full">
               {loading ? 'PROCESSING...' : 'BUY NOW'}

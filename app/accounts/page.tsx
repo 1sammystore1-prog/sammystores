@@ -8,23 +8,37 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('');
-  const [accountData, setAccountData] = useState(null);
+  const [accountData, setAccountData] = useState<any>(null);
+  const [balance, setBalance] = useState(0);
 
   const handleBuy = async () => {
     setLoading(true);
     setMsg('');
     setAccountData(null);
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setMsgType('error');
+      setMsg('Please login to buy accounts.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/accounts/buy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: accountType, amount: 1 })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ accountType })
       });
       const data = await res.json();
       if (data.success) {
         setMsgType('success');
-        setMsg('Account Acquired!');
-        setAccountData(data.data);
+        setMsg(data.message);
+        setAccountData(data.account);
+        setBalance(data.newBalance);
       } else {
         setMsgType('error');
         setMsg(data.error || 'Purchase Failed');
@@ -45,6 +59,7 @@ export default function AccountsPage() {
           <div className="mb-8">
             <p className="terminal-text text-sm mb-2">{`> MODULE: ACCOUNT_MARKET`}</p>
             <h1 className="text-3xl md:text-4xl font-bold text-[#e0e0e0]">BUY ACCOUNTS</h1>
+            {balance > 0 && <p className="text-[#00ff88] font-mono mt-2">Current Balance: ₦{balance}</p>}
           </div>
           <div className="card-dark max-w-2xl">
             <div className="mb-6">
@@ -57,19 +72,36 @@ export default function AccountsPage() {
               </select>
             </div>
             <div className="mb-6 p-4 bg-[#1a1a25] rounded border border-[#2a2a3a]">
-              <p className="text-[#a0a0b0] text-sm font-mono">{`> STOCK: `}<span className="text-[#00ff88] font-bold">AVAILABLE</span></p>
+              <p className="text-[#a0a0b0] text-sm font-mono">{`> PRICE: `}<span className="text-[#ffd700] font-bold">₦1,500.00</span></p>
+              <p className="text-[#a0a0b0] text-sm font-mono mt-1">{`> STOCK: `}<span className="text-[#00ff88] font-bold">AVAILABLE</span></p>
             </div>
             <button onClick={handleBuy} disabled={loading} className="btn-neon-green w-full">
               {loading ? 'SECURING ACCOUNT...' : 'PURCHASE ACCOUNT'}
             </button>
+            
             {msg && (
               <div className={`mt-6 p-4 rounded text-center border ${msgType === 'success' ? 'border-[#ffd700] bg-[#ffd700]/10 text-[#ffd700]' : 'border-[#ff2a6d] bg-[#ff2a6d]/10 text-[#ff2a6d]'}`}>
                 <p className="font-mono font-bold">{msg}</p>
               </div>
             )}
+
             {accountData && (
-              <div className="mt-4 p-4 border border-[#00ff88]/30 bg-[#00ff88]/5 rounded font-mono text-sm text-[#e0e0e0]">
-                <pre className="whitespace-pre-wrap">{JSON.stringify(accountData, null, 2)}</pre>
+              <div className="mt-6 p-6 border border-[#00ff88]/30 bg-[#00ff88]/5 rounded-lg">
+                <h3 className="text-[#00ff88] font-mono mb-4 text-lg">{`> ACCOUNT_ACQUIRED:`}</h3>
+                <div className="space-y-3 font-mono text-sm">
+                  <div>
+                    <span className="text-[#a0a0b0]">{`> EMAIL: `}</span>
+                    <span className="text-[#e0e0e0]">{accountData.email}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#a0a0b0]">{`> PASSWORD: `}</span>
+                    <span className="text-[#e0e0e0]">{accountData.password}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#a0a0b0]">{`> RECOVERY: `}</span>
+                    <span className="text-[#e0e0e0]">{accountData.recovery}</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>

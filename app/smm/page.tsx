@@ -4,29 +4,43 @@ import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
 
 export default function SmmPage() {
-  const [service, setService] = useState('1');
+  const [service, setService] = useState('instagram_followers');
   const [link, setLink] = useState('');
   const [quantity, setQuantity] = useState('1000');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('');
+  const [balance, setBalance] = useState(0);
 
   const handleOrder = async () => {
     setLoading(true);
     setMsg('');
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setMsgType('error');
+      setMsg('Please login to place orders.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/smm/order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ service, link, quantity })
       });
       const data = await res.json();
       if (data.success) {
         setMsgType('success');
-        setMsg(`Order Placed! ID: ${data.data.order || 'Success'}`);
+        setMsg(data.message);
+        setBalance(data.newBalance);
       } else {
         setMsgType('error');
-        setMsg(data.error || 'Order Failed (Check Balance)');
+        setMsg(data.error || 'Order Failed');
       }
     } catch (e) {
       setMsgType('error');
@@ -44,15 +58,16 @@ export default function SmmPage() {
           <div className="mb-8">
             <p className="terminal-text text-sm mb-2">{`> MODULE: SMM_SERVICES`}</p>
             <h1 className="text-3xl md:text-4xl font-bold text-[#e0e0e0]">SOCIAL MEDIA MARKETING</h1>
+            {balance > 0 && <p className="text-[#00ff88] font-mono mt-2">Current Balance: ₦{balance}</p>}
           </div>
           <div className="card-dark max-w-2xl">
             <div className="mb-6">
               <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> SELECT_SERVICE`}</label>
               <select value={service} onChange={(e) => setService(e.target.value)} className="input-dark">
-                <option value="1">INSTAGRAM FOLLOWERS</option>
-                <option value="2">INSTAGRAM LIKES</option>
-                <option value="3">TIKTOK VIEWS</option>
-                <option value="4">YOUTUBE SUBSCRIBERS</option>
+                <option value="instagram_followers">INSTAGRAM FOLLOWERS (₦500/1k)</option>
+                <option value="instagram_likes">INSTAGRAM LIKES (₦500/1k)</option>
+                <option value="tiktok_views">TIKTOK VIEWS (₦500/1k)</option>
+                <option value="youtube_subscribers">YOUTUBE SUBSCRIBERS (₦500/1k)</option>
               </select>
             </div>
             <div className="mb-6">
@@ -64,7 +79,7 @@ export default function SmmPage() {
               <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="input-dark" />
             </div>
             <button onClick={handleOrder} disabled={loading} className="btn-neon-purple w-full">
-              {loading ? 'PLACING ORDER...' : 'PLACE ORDER'}
+              {loading ? 'PROCESSING...' : 'PLACE ORDER'}
             </button>
             {msg && (
               <div className={`mt-6 p-4 rounded text-center border ${msgType === 'success' ? 'border-[#b829dd] bg-[#b829dd]/10 text-[#b829dd]' : 'border-[#ff2a6d] bg-[#ff2a6d]/10 text-[#ff2a6d]'}`}>
