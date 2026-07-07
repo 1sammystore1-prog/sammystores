@@ -10,7 +10,7 @@ export default function FundPage() {
   const [msg, setMsg] = useState('');
 
   const handleFund = async () => {
-    if (!amount || amount < 100) {
+    if (!amount || parseInt(amount) < 100) {
       setMsg('Minimum amount is 100');
       return;
     }
@@ -19,21 +19,19 @@ export default function FundPage() {
 
     if (method === 'paystack') {
       try {
-        // Note: Replace with real user email/ID from your auth system later
         const res = await fetch('/api/wallet/fund-paystack', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'user@darknet.com', amount: amount, userId: 'user123' })
+          body: JSON.stringify({ email: 'user@darknet.com', amount: parseInt(amount), userId: 'user123' })
         });
         const data = await res.json();
         if (data.success && data.url) {
-          window.location.href = data.url; // Redirect to Paystack
+          window.location.href = data.url;
         } else {
           setMsg(data.error || 'Failed to start payment');
         }
       } catch (e) { setMsg('Network Error'); }
     } else {
-      // Manual Transfer Logic
       setTimeout(() => {
         setMsg('Request submitted! Admin will verify your transfer.');
         setLoading(false);
