@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Document, Model, SaveOptions } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
@@ -22,7 +22,7 @@ const UserSchema: Schema<IUser> = new Schema(
 );
 
 // Hash password before saving
-UserSchema.pre('save', async function (next) {
+UserSchema.pre('save', async function(next) {
   const user = this;
   if (!user.isModified('password')) {
     return next();
@@ -34,10 +34,10 @@ UserSchema.pre('save', async function (next) {
   } catch (error: any) {
     next(error);
   }
-});
+} as any);
 
 // Compare password method
-UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+UserSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
