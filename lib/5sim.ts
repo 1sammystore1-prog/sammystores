@@ -7,9 +7,11 @@ export async function fiveSimRequest(endpoint: string, method: 'GET' | 'POST' = 
   
   if (!apiKey) throw new Error('5sim API key not configured');
 
+  const url = `${BASE_URL}${endpoint}`;
+  
   const config: any = {
     method,
-    url: `${BASE_URL}${endpoint}`,
+    url,
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Accept': 'application/json'
@@ -22,6 +24,16 @@ export async function fiveSimRequest(endpoint: string, method: 'GET' | 'POST' = 
     config.data = params;
   }
 
-  const response = await axios(config);
-  return response.data;
+  try {
+    const response = await axios(config);
+    return response.data;
+  } catch (error: any) {
+    console.error('5sim API Error:', {
+      url,
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+    throw new Error(`5sim API error: ${error.response?.status || 'Unknown'} - ${error.message}`);
+  }
 }
