@@ -49,10 +49,9 @@ export async function POST(request: Request) {
     await Transaction.create({
       userId,
       type: 'virtual_number',
-      description: `Bought ${product} number for ${country}`,
+      description: `Bought ${product} number for ${country} - Order ID: ${activation.id}, Phone: ${activation.phone}`,
       amount: priceInNgn,
-      status: 'success',
-      metadata: { orderId: activation.id, phoneNumber: activation.phone }
+      status: 'success'
     });
 
     return NextResponse.json({ 
