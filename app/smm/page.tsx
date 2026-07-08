@@ -1,16 +1,44 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
 
 export default function SmmPage() {
-  const [service, setService] = useState('instagram_followers');
+  const [services, setServices] = useState<any[]>([]);
+  const [service, setService] = useState('');
   const [link, setLink] = useState('');
   const [quantity, setQuantity] = useState('1000');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('');
   const [balance, setBalance] = useState(0);
+  const [currentPrice, setCurrentPrice] = useState(0);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const res = await fetch('/api/smm/services');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.services)) {
+          setServices(data.services);
+          if (data.services.length > 0) {
+            setService(data.services[0].service);
+            setCurrentPrice(data.services[0].rate);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch services:', error);
+      }
+    };
+    fetchServices();
+  }, []);
+
+  const handleServiceChange = (e: any) => {
+    const selectedId = e.target.value;
+    setService(selectedId);
+    const selectedService = services.find((s) => s.service === selectedId);
+    if (selectedService) setCurrentPrice(selectedService.rate);
+  };
 
   const handleOrder = async () => {
     setLoading(true);
@@ -31,12 +59,12 @@ export default function SmmPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ service, link, quantity })
+        body: JSON.stringify({ service, link, quantity, price: currentPrice })
       });
       const data = await res.json();
       if (data.success) {
         setMsgType('success');
-        setMsg(data.message);
+        setMsg(`Order Placed! ID: ${data.orderId}`);
         setBalance(data.newBalance);
       } else {
         setMsgType('error');
@@ -47,6 +75,10 @@ export default function SmmPage() {
       setMsg('Network Error');
     }
     setLoading(false);
+  };
+
+  const calculateTotal = () => {
+    return ((parseInt(quantity) / 1000) * currentPrice).toFixed(2);
   };
 
   return (
@@ -63,11 +95,16 @@ export default function SmmPage() {
           <div className="card-dark max-w-2xl">
             <div className="mb-6">
               <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> SELECT_SERVICE`}</label>
-              <select value={service} onChange={(e) => setService(e.target.value)} className="input-dark">
-                <option value="instagram_followers">INSTAGRAM FOLLOWERS (₦500/1k)</option>
-                <option value="instagram_likes">INSTAGRAM LIKES (₦500/1k)</option>
-                <option value="tiktok_views">TIKTOK VIEWS (₦500/1k)</option>
-                <option value="youtube_subscribers">YOUTUBE SUBSCRIBERS (₦500/1k)</option>
+              <select value={service} onChange={handleServiceChange} className="input-dark">
+                {services.length === 0 ? (
+                  <option value="">Loading services...</option>
+                ) : (
+                  services.map((s) => (
+                    <option key={s.service} value={s.service}>
+                      {s.name} - ₦{s.rate}/1k
+                    </option>
+                  ))
+                )}
               </select>
             </div>
             <div className="mb-6">
@@ -78,6 +115,12 @@ export default function SmmPage() {
               <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> QUANTITY`}</label>
               <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="input-dark" />
             </div>
+            
+            <div className="mb-6 p-4 bg-[#1a1a25] rounded border border-[#2a2a3a] flex justify-between">
+              <span className="text-[#a0a0b0] font-mono">{`> TOTAL_COST:`}</span>
+              <span className="text-[#ffd700] font-bold font-mono">₦{calculateTotal()}</span>
+            </div>
+
             <button onClick={handleOrder} disabled={loading} className="btn-neon-purple w-full">
               {loading ? 'PROCESSING...' : 'PLACE ORDER'}
             </button>
