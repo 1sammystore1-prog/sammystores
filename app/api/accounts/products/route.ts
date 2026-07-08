@@ -6,8 +6,8 @@ export async function GET() {
   if (!apiKey) {
     return NextResponse.json({ 
       success: false, 
-      error: 'API key not configured in Vercel',
-      products: [] 
+      error: 'API key not configured',
+      debug: 'Add YOUR_DANOTP_API_KEY to your environment variables'
     }, { status: 500 });
   }
 
@@ -16,18 +16,19 @@ export async function GET() {
     
     const response = await fetch(url, {
       method: 'GET',
-      headers: { 'Accept': 'application/json' },
+      headers: {
+        'Accept': 'application/json',
+      },
       cache: 'no-store'
     });
 
     const text = await response.text();
     
     if (!response.ok) {
-      return NextResponse.json({ 
-        success: false, 
-        error: `HTTP ${response.status}: ${text.substring(0, 100)}`,
-        products: [],
-        rawResponse: text.substring(0, 200)
+      return NextResponse.json({
+        success: false,
+        error: `HTTP ${response.status}`,
+        rawResponse: text.substring(0, 300)
       }, { status: response.status });
     }
 
@@ -35,10 +36,9 @@ export async function GET() {
     try {
       data = JSON.parse(text);
     } catch {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Invalid JSON from DanOTP',
-        products: [],
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid JSON response',
         rawResponse: text.substring(0, 300)
       }, { status: 500 });
     }
@@ -56,14 +56,15 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       products: products,
-      count: products.length
+      count: products.length,
+      rawResponse: text.substring(0, 150)
     });
 
   } catch (error: any) {
-    return NextResponse.json({ 
-      success: false, 
+    return NextResponse.json({
+      success: false,
       error: error.message || 'Network error',
-      products: [] 
+      products: []
     }, { status: 500 });
   }
 }

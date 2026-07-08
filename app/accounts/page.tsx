@@ -7,7 +7,7 @@ export default function AccountsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [debugRaw, setDebugRaw] = useState('');
+  const [debugInfo, setDebugInfo] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('');
@@ -20,22 +20,24 @@ export default function AccountsPage() {
       try {
         setLoading(true);
         setError('');
-        setDebugRaw('');
+        setDebugInfo('');
         
         const res = await fetch('/api/accounts/products');
         const data = await res.json();
+        
+        console.log('Products API Response:', data);
+        setDebugInfo(JSON.stringify(data).substring(0, 200));
         
         if (data.success && Array.isArray(data.products) && data.products.length > 0) {
           setProducts(data.products);
           setError('');
         } else {
           setError(data.error || 'No products available');
-          setDebugRaw(data.debugRaw || 'No debug info');
           setProducts([]);
         }
       } catch (err: any) {
         setError('Network error: ' + err.message);
-        setDebugRaw('Failed to connect to API');
+        setDebugInfo('Failed to connect to API');
       } finally {
         setLoading(false);
       }
@@ -114,21 +116,21 @@ export default function AccountsPage() {
           <div className="mb-8">
             <p className="terminal-text text-sm mb-2">{`> MODULE: ACCOUNT_MARKET`}</p>
             <h1 className="text-3xl md:text-4xl font-bold text-[#e0e0e0]">BUY ACCOUNTS</h1>
-            {balance > 0 && <p className="text-[#00ff88] font-mono mt-2">Balance: ₦{balance}</p>}
+            {balance > 0 && <p className="text-[#00ff88] font-mono mt-2">Balance: {balance}</p>}
           </div>
 
           {error && (
             <div className="mb-6 p-4 bg-[#ff2a6d]/10 border border-[#ff2a6d]/30 rounded-lg">
-              <p className="text-[#ff2a6d] font-mono mb-2 font-bold">⚠️ {error}</p>
-              {debugRaw && (
+              <p className="text-[#ff2a6d] font-mono mb-2">⚠️ {error}</p>
+              {debugInfo && (
                 <div className="mt-2 p-2 bg-black/30 rounded text-xs font-mono text-[#ff2a6d]/80 break-all">
-                  <p className="font-bold mb-1">Raw API Response:</p>
-                  {debugRaw}
+                  <p className="font-bold mb-1">Debug Info:</p>
+                  {debugInfo}
                 </div>
               )}
               <button 
                 onClick={() => window.location.reload()}
-                className="mt-3 px-4 py-2 bg-[#ff2a6d]/20 hover:bg-[#ff2a6d]/30 rounded text-[#ff2a6d] text-sm font-mono"
+                className="mt-3 px-4 py-2 bg-[#ff2a6d]/20 hover:bg-[#ff2a6d]/30 rounded text-[#ff2a6d] text-sm"
               >
                 ↻ Retry
               </button>
