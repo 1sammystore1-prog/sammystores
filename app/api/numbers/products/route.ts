@@ -3,15 +3,15 @@ import { fiveSimRequest } from '@/lib/5sim';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const orderId = searchParams.get('orderId');
+  const country = searchParams.get('country');
 
-  if (!orderId) {
-    return NextResponse.json({ success: false, error: 'Order ID is required' }, { status: 400 });
+  if (!country) {
+    return NextResponse.json({ success: false, error: 'Country is required' }, { status: 400 });
   }
 
   try {
-    const data = await fiveSimRequest(`/check/${orderId}`);
-    return NextResponse.json({ success: true, sms: data });
+    const data = await fiveSimRequest(`/products/${country}/any`);
+    return NextResponse.json({ success: true, products: data });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
