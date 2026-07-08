@@ -12,30 +12,44 @@ export async function POST(request: Request) {
 
   const { service, link, quantity, price } = await request.json();
   
-  // Calculate cost based on price per 1000
-  const cost = (parseInt(quantity) / 1000) * parseFloat(price);
+  // Safely parse values
+  const qty = parseFloat(String(quantity)) || 1000;
+  const rate = parseFloat(String(price)) || 0;
+  
+  // Calculate cost safely
+  const cost = (qty / 1000) * rate;
+
+  // Validate cost
+  if (isNaN(cost) || cost <= 0) {
+    return NextResponse.json({ success: false, error: 'Invalid cost calculation' });
+  }
 
   const user = await User.findById(userId);
   if (!user) return NextResponse.json({ success: false, error: 'User not found' });
-  if (user.walletBalance < cost) return NextResponse.json({ success: false, error: 'Insufficient funds' });
 
-  // 1. Deduct Money
-  user.walletBalance -= cost;
+  const currentBalance = parseFloat(String(user.walletBalance)) || 0;
+  
+  if (currentBalance < cost) {
+    return NextResponse.json({ success: false, error: 'Insufficient funds' });
+  }
+
+  // Deduct money safely
+  user.walletBalance = currentBalance - cost;
+  if (isNaN(user.walletBalance)) user.walletBalance = 0;
   await user.save();
 
-  // 2. Call DanOTP SMM API
   try {
-    const data = await smmRequest('add', { service, link, quantity });
+    const data = await smmRequest('add', { service, link, quantity: qty });
     
-    // Save Transaction
     await Transaction.create({
-      userId, type: 'smm', description: `SMM Order #${data.order || 'Pending'} for ${link}`, amount: cost, status: 'success'
+      userId, type: 'smm', description: `SMM Order for ${link}`, amount: cost, status: 'success'
     });
 
     return NextResponse.json({ success: true, message: 'Order placed!', orderId: data.order, newBalance: user.walletBalance });
   } catch (error) {
-    // Refund if API fails
-    user.walletBalance += cost;
+    // Refund on failure
+    user.walletBalance = (parseFloat(String(user.walletBalance)) || 0) + cost;
+    if (isNaN(user.walletBalance)) user.walletBalance = 0;
     await user.save();
     return NextResponse.json({ success: false, error: 'Provider failed' });
   }

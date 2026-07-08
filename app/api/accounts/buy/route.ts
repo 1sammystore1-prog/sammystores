@@ -11,18 +11,29 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' });
 
   const { productId, amount, coupon, price } = await request.json();
-  const qty = amount || 1;
-  const cost = price * qty;
+  const qty = parseInt(String(amount)) || 1;
+  const unitPrice = parseFloat(String(price)) || 0;
+  const cost = unitPrice * qty;
+
+  // Validate cost
+  if (isNaN(cost) || cost <= 0) {
+    return NextResponse.json({ success: false, error: 'Invalid cost calculation' });
+  }
 
   const user = await User.findById(userId);
   if (!user) return NextResponse.json({ success: false, error: 'User not found' });
-  if (user.walletBalance < cost) return NextResponse.json({ success: false, error: 'Insufficient funds' });
 
-  // 1. Deduct Money
-  user.walletBalance -= cost;
+  const currentBalance = parseFloat(String(user.walletBalance)) || 0;
+  
+  if (currentBalance < cost) {
+    return NextResponse.json({ success: false, error: 'Insufficient funds' });
+  }
+
+  // Deduct money safely
+  user.walletBalance = currentBalance - cost;
+  if (isNaN(user.walletBalance)) user.walletBalance = 0;
   await user.save();
 
-  // 2. Call DanOTP API
   try {
     const data = await buyAccountsRequest('buyProduct', { 
       id: productId, 
@@ -30,7 +41,6 @@ export async function POST(request: Request) {
       coupon: coupon || '' 
     });
 
-    // 3. Save Transaction
     await Transaction.create({
       userId, 
       type: 'account_purchase', 
@@ -47,7 +57,8 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     // Refund on failure
-    user.walletBalance += cost;
+    user.walletBalance = (parseFloat(String(user.walletBalance)) || 0) + cost;
+    if (isNaN(user.walletBalance)) user.walletBalance = 0;
     await user.save();
     return NextResponse.json({ success: false, error: 'Purchase failed' });
   }

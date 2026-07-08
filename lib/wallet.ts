@@ -4,19 +4,39 @@ import Transaction from '@/models/Transaction';
 
 export async function deductBalance(userId: string, amount: number, description: string) {
   await dbConnect();
+  
+  // Ensure amount is a valid number
+  const validAmount = parseFloat(String(amount));
+  if (isNaN(validAmount) || validAmount <= 0) {
+    return { success: false, error: 'Invalid amount' };
+  }
+
   const user = await User.findById(userId);
   
   if (!user) return { success: false, error: 'User not found' };
-  if (user.walletBalance < amount) return { success: false, error: 'Insufficient funds' };
+  
+  // Ensure walletBalance is a valid number
+  const currentBalance = parseFloat(String(user.walletBalance)) || 0;
+  
+  if (currentBalance < validAmount) {
+    return { success: false, error: 'Insufficient funds' };
+  }
 
-  user.walletBalance -= amount;
+  // Deduct and ensure result is a valid number
+  user.walletBalance = currentBalance - validAmount;
+  
+  // Safety check: if somehow NaN, set to 0
+  if (isNaN(user.walletBalance)) {
+    user.walletBalance = 0;
+  }
+  
   await user.save();
 
   await Transaction.create({
     userId,
     type: 'number_rental',
     description,
-    amount,
+    amount: validAmount,
     status: 'success'
   });
 
