@@ -4,7 +4,7 @@ export async function GET(request: Request) {
   const apiKey = process.env.YOUR_DANOTP_API_KEY;
   const { searchParams } = new URL(request.url);
   const action = searchParams.get('action') || 'getServices';
-  const country = searchParams.get('country') || 'US'; // Default to US
+  const country = searchParams.get('country') || 'US';
   
   if (!apiKey) {
     return NextResponse.json({ 
@@ -47,8 +47,10 @@ export async function GET(request: Request) {
       }, { status: 500 });
     }
 
-    // Convert object to array if needed
+    // Server 2 returns data as an object with IDs as keys
+    // Convert object to array of services/countries
     let result = [];
+    
     if (Array.isArray(data)) {
       result = data;
     } else if (data && typeof data === 'object') {
@@ -59,8 +61,14 @@ export async function GET(request: Request) {
       } else if (Array.isArray(data.data)) {
         result = data.data;
       } else {
-        // Convert object to array
-        result = Object.values(data).filter(item => item && typeof item === 'object');
+        // Convert object with keys to array format
+        // Server 2 returns: {"aaa*br": {"name": "Nubank", "price": "574.64"}, ...}
+        result = Object.entries(data).map(([id, info]: [string, any]) => ({
+          id: id,
+          name: info.name || id,
+          price: info.price || 0,
+          ...info
+        }));
       }
     }
 
