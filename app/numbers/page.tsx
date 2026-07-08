@@ -4,12 +4,12 @@ import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
 
 export default function NumbersPage() {
+  const [server, setServer] = useState('1');
   const [services, setServices] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
   const [service, setService] = useState('');
   const [country, setCountry] = useState('');
-  const [areaCode, setAreaCode] = useState('');
-  const [pool, setPool] = useState('1');
+  const [maxPrice, setMaxPrice] = useState('500');
   const [loading, setLoading] = useState(false);
   const [checkingSms, setCheckingSms] = useState(false);
   const [currentNumber, setCurrentNumber] = useState<any>(null);
@@ -20,25 +20,49 @@ export default function NumbersPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [servicesRes, countriesRes] = await Promise.all([
-          fetch('/api/danotp/services'),
-          fetch('/api/danotp/countries')
-        ]);
-        
-        const servicesData = await servicesRes.json();
-        const countriesData = await countriesRes.json();
-        
-        if (servicesData.success) {
-          setServices(servicesData.services);
-          if (servicesData.services.length > 0) {
-            setService(servicesData.services[0].slug || servicesData.services[0].id);
+        if (server === '1') {
+          const [servicesRes, countriesRes] = await Promise.all([
+            fetch('/api/danotp/services'),
+            fetch('/api/danotp/countries')
+          ]);
+          
+          const servicesData = await servicesRes.json();
+          const countriesData = await countriesRes.json();
+          
+          if (servicesData.success) {
+            setServices(servicesData.services);
+            if (servicesData.services.length > 0) {
+              setService(servicesData.services[0].slug || servicesData.services[0].id);
+            }
           }
-        }
-        
-        if (countriesData.success) {
-          setCountries(countriesData.countries);
-          if (countriesData.countries.length > 0) {
-            setCountry(countriesData.countries[0].code || countriesData.countries[0].id);
+          
+          if (countriesData.success) {
+            setCountries(countriesData.countries);
+            if (countriesData.countries.length > 0) {
+              setCountry(countriesData.countries[0].code || countriesData.countries[0].id);
+            }
+          }
+        } else {
+          const [servicesRes, countriesRes] = await Promise.all([
+            fetch('/api/danotp/server2/services?country=US'),
+            fetch('/api/danotp/server2/countries')
+          ]);
+          
+          const servicesData = await servicesRes.json();
+          const countriesData = await countriesRes.json();
+          
+          if (servicesData.success) {
+            setServices(servicesData.services);
+            if (servicesData.services.length > 0) {
+              setService(servicesData.services[0].slug || servicesData.services[0].id);
+            }
+          }
+          
+          if (countriesData.success) {
+            setCountries(countriesData.countries);
+            if (countriesData.countries.length > 0) {
+              setCountry(countriesData.countries[0].code || countriesData.countries[0].id);
+            }
           }
         }
       } catch (error) {
@@ -46,7 +70,7 @@ export default function NumbersPage() {
       }
     };
     fetchData();
-  }, []);
+  }, [server]);
 
   const buyNumber = async () => {
     setLoading(true);
@@ -62,13 +86,18 @@ export default function NumbersPage() {
     }
 
     try {
-      const res = await fetch('/api/numbers/get', {
+      const endpoint = server === '1' ? '/api/numbers/get' : '/api/numbers/server2/get';
+      const body = server === '1' 
+        ? { service, country, quantity: 1 }
+        : { service, country, maxPrice };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ service, country, quantity: 1, areacode: areaCode, pool })
+        body: JSON.stringify(body)
       });
       const data = await res.json();
       
@@ -91,7 +120,8 @@ export default function NumbersPage() {
     setMsg('');
     
     try {
-      const res = await fetch('/api/numbers/sms', {
+      const endpoint = server === '1' ? '/api/numbers/sms' : '/api/numbers/server2/sms';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: currentNumber.orderId })
@@ -123,6 +153,13 @@ export default function NumbersPage() {
           </div>
           <div className="card-dark max-w-2xl">
             <div className="mb-6">
+              <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> SELECT_SERVER`}</label>
+              <select value={server} onChange={(e) => setServer(e.target.value)} className="input-dark">
+                <option value="1">ALL COUNTRIES SERVER 1</option>
+                <option value="2">ALL COUNTRIES SERVER 2</option>
+              </select>
+            </div>
+            <div className="mb-6">
               <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> SELECT_SERVICE`}</label>
               <select value={service} onChange={(e) => setService(e.target.value)} className="input-dark">
                 {services.length === 0 ? (
@@ -150,18 +187,19 @@ export default function NumbersPage() {
                 )}
               </select>
             </div>
-            <div className="mb-6">
-              <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> AREA_CODE (OPTIONAL)`}</label>
-              <input 
-                type="text" 
-                value={areaCode}
-                onChange={(e) => setAreaCode(e.target.value)}
-                placeholder="e.g., 212"
-                className="input-dark"
-              />
-            </div>
+            {server === '2' && (
+              <div className="mb-6">
+                <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> MAX_PRICE (NGN)`}</label>
+                <input 
+                  type="number" 
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  className="input-dark"
+                />
+              </div>
+            )}
             <button onClick={buyNumber} disabled={loading} className="btn-neon-green w-full">
-              {loading ? 'ACQUIRING...' : 'ACQUIRE NUMBER - ₦500'}
+              {loading ? 'ACQUIRING...' : `ACQUIRE NUMBER - ₦${maxPrice || 500}`}
             </button>
             
             {msg && <p className={`mt-4 text-center font-mono ${msg.includes('acquired') || msg.includes('Received') ? 'text-[#00ff88]' : 'text-[#ff2a6d]'}`}>{msg}</p>}
