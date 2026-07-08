@@ -1,10 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
 
 export default function NumbersPage() {
-  const [service, setService] = useState('whatsapp');
+  const [services, setServices] = useState<any[]>([]);
+  const [service, setService] = useState('');
   const [country, setCountry] = useState('usa');
   const [loading, setLoading] = useState(false);
   const [checkingSms, setCheckingSms] = useState(false);
@@ -12,6 +13,24 @@ export default function NumbersPage() {
   const [smsCode, setSmsCode] = useState('');
   const [msg, setMsg] = useState('');
   const [balance, setBalance] = useState(0);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const res = await fetch('/api/danotp/services');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.services)) {
+          setServices(data.services);
+          if (data.services.length > 0) {
+            setService(data.services[0].slug || data.services[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch services:', error);
+      }
+    };
+    fetchServices();
+  }, []);
 
   const buyNumber = async () => {
     setLoading(true);
@@ -90,9 +109,15 @@ export default function NumbersPage() {
             <div className="mb-6">
               <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> SELECT_SERVICE`}</label>
               <select value={service} onChange={(e) => setService(e.target.value)} className="input-dark">
-                <option value="whatsapp">WHATSAPP</option>
-                <option value="telegram">TELEGRAM</option>
-                <option value="gmail">GMAIL</option>
+                {services.length === 0 ? (
+                  <option value="">Loading services...</option>
+                ) : (
+                  services.map((s) => (
+                    <option key={s.id} value={s.slug || s.id}>
+                      {s.name} - ₦{s.cost || 500}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
             <div className="mb-6">
@@ -100,11 +125,12 @@ export default function NumbersPage() {
               <select value={country} onChange={(e) => setCountry(e.target.value)} className="input-dark">
                 <option value="usa">🇸 USA</option>
                 <option value="uk">🇬🇧 UK</option>
-                <option value="canada">🇦 CANADA</option>
+                <option value="canada">🇨🇦 CANADA</option>
+                <option value="russia">🇷🇺 RUSSIA</option>
               </select>
             </div>
             <button onClick={buyNumber} disabled={loading} className="btn-neon-green w-full">
-              {loading ? 'ACQUIRING...' : 'ACQUIRE NUMBER - 500'}
+              {loading ? 'ACQUIRING...' : 'ACQUIRE NUMBER - ₦500'}
             </button>
             
             {msg && <p className={`mt-4 text-center font-mono ${msg.includes('acquired') || msg.includes('Received') ? 'text-[#00ff88]' : 'text-[#ff2a6d]'}`}>{msg}</p>}

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
+import { danotpRequest } from '@/lib/danotp';
 import { getUserId } from '@/lib/auth';
 import { deductBalance } from '@/lib/wallet';
 
@@ -8,33 +8,21 @@ export async function POST(request: Request) {
     const userId = getUserId(request);
     if (!userId) return NextResponse.json({ success: false, error: 'Please login first' });
 
-    const { service, country } = await request.json();
-    const apiKey = process.env.YOUR_DANOTP_API_KEY;
-    
-    // Cost per number (you can change this later)
-    const cost = 500; 
+    const { service, country, carrier, area_codes, duration, specific_number } = await request.json();
+    const cost = 500;
 
-    // 1. Deduct money first
     const deduction = await deductBalance(userId, cost, `Rent ${service} number (${country})`);
     if (!deduction.success) {
       return NextResponse.json({ success: false, error: deduction.error });
     }
 
-    if (!apiKey || apiKey === 'your_danotp_api_key_here') {
-      return NextResponse.json({ success: false, error: 'API Key not configured' });
-    }
+    const params: any = { service, country };
+    if (carrier) params.carrier = carrier;
+    if (area_codes) params.area_codes = area_codes;
+    if (duration) params.duration = duration;
+    if (specific_number) params.specific_number = specific_number;
 
-    // 2. Call DanOTP
-    const response = await axios.get('https://danotp.com.ng/stubs/handler_api.php', {
-      params: {
-        action: 'getNumber',
-        api_key: apiKey,
-        service: service,
-        country: country
-      }
-    });
-
-    const data = response.data;
+    const data = await danotpRequest('getNumber', params);
 
     if (data.includes('ACCESS_NUMBER')) {
       const parts = data.split(':');
@@ -47,8 +35,7 @@ export async function POST(request: Request) {
     } else {
       return NextResponse.json({ success: false, error: data });
     }
-
-  } catch (error) {
-    return NextResponse.json({ success: false, error: 'Server Error' });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message });
   }
 }
