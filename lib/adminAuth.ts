@@ -14,7 +14,7 @@ export async function verifyAdmin(request: Request) {
     await dbConnect();
     const user = await User.findById(decoded.id);
     
-    // Check if user exists AND email matches the ADMIN_EMAIL variable
+    // Only allow access if the email matches your ADMIN_EMAIL in Vercel
     if (user && user.email === process.env.ADMIN_EMAIL) {
       return user;
     }
