@@ -6,53 +6,32 @@ import Sidebar from '@/components/Sidebar';
 export default function AccountsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [debugInfo, setDebugInfo] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [buying, setBuying] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('');
-  const [balance, setBalance] = useState(0);
   const [accountData, setAccountData] = useState<any>(null);
-  const [buying, setBuying] = useState(false);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        setDebugInfo('');
-        
-        const res = await fetch('/api/accounts/products');
-        const data = await res.json();
-        
-        console.log('Products API Response:', data);
-        setDebugInfo(JSON.stringify(data).substring(0, 200));
-        
-        if (data.success && Array.isArray(data.products) && data.products.length > 0) {
-          setProducts(data.products);
-          setError('');
-        } else {
-          setError(data.error || 'No products available');
-          setProducts([]);
-        }
-      } catch (err: any) {
-        setError('Network error: ' + err.message);
-        setDebugInfo('Failed to connect to API');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchProducts();
   }, []);
 
-  const handleBuy = async () => {
-    if (!selectedProduct) {
-      setMsgType('error');
-      setMsg('Please select a product');
-      return;
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch('/api/accounts/products');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.products)) {
+        setProducts(data.products);
+      }
+    } catch (error) {
+      console.error('Failed to fetch products:', error);
     }
+    setLoading(false);
+  };
 
+  const handleBuy = async () => {
+    if (!selectedProduct) return;
+    
     setBuying(true);
     setMsg('');
     setAccountData(null);
@@ -60,7 +39,7 @@ export default function AccountsPage() {
     const token = localStorage.getItem('token');
     if (!token) {
       setMsgType('error');
-      setMsg('Please login');
+      setMsg('Please login to purchase');
       setBuying(false);
       return;
     }
@@ -75,116 +54,103 @@ export default function AccountsPage() {
         body: JSON.stringify({ 
           productId: selectedProduct.id,
           amount: 1,
-          price: selectedProduct.price 
+          price: selectedProduct.price
         })
       });
       const data = await res.json();
       
       if (data.success) {
         setMsgType('success');
-        setMsg(data.message);
+        setMsg('Account purchased successfully!');
         setAccountData(data.accountData);
-        setBalance(data.newBalance);
       } else {
         setMsgType('error');
-        setMsg(data.error);
+        setMsg(data.error || 'Purchase failed');
       }
-    } catch (e: any) {
+    } catch (error: any) {
       setMsgType('error');
-      setMsg('Network error: ' + e.message);
+      setMsg('Network error: ' + error.message);
     }
     setBuying(false);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#00f5ff] mx-auto mb-4"></div>
-          <p className="text-[#00ff88] font-mono">Loading products...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#f97316] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading products...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="flex flex-col md:flex-row">
+      <div className="flex flex-col md:flex-row max-w-7xl mx-auto">
         <Sidebar />
         <main className="flex-1 p-6 md:p-8">
           <div className="mb-8">
-            <p className="terminal-text text-sm mb-2">{`> MODULE: ACCOUNT_MARKET`}</p>
-            <h1 className="text-3xl md:text-4xl font-bold text-[#e0e0e0]">BUY ACCOUNTS</h1>
-            {balance > 0 && <p className="text-[#00ff88] font-mono mt-2">Balance: {balance}</p>}
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">Buy Accounts</h1>
+            <p className="text-gray-600">Premium verified accounts for all platforms</p>
           </div>
 
-          {error && (
-            <div className="mb-6 p-4 bg-[#ff2a6d]/10 border border-[#ff2a6d]/30 rounded-lg">
-              <p className="text-[#ff2a6d] font-mono mb-2">⚠️ {error}</p>
-              {debugInfo && (
-                <div className="mt-2 p-2 bg-black/30 rounded text-xs font-mono text-[#ff2a6d]/80 break-all">
-                  <p className="font-bold mb-1">Debug Info:</p>
-                  {debugInfo}
-                </div>
-              )}
-              <button 
-                onClick={() => window.location.reload()}
-                className="mt-3 px-4 py-2 bg-[#ff2a6d]/20 hover:bg-[#ff2a6d]/30 rounded text-[#ff2a6d] text-sm"
-              >
-                ↻ Retry
-              </button>
-            </div>
-          )}
-
-          {products.length === 0 && !error && (
-            <div className="mb-6 p-4 bg-[#ffd700]/10 border border-[#ffd700]/30 rounded-lg">
-              <p className="text-[#ffd700] font-mono">No products available</p>
-            </div>
-          )}
-
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {products.map((product: any) => (
-              <div 
-                key={product.id} 
+            {products.map((product) => (
+              <div
+                key={product.id}
                 onClick={() => setSelectedProduct(product)}
-                className={`card-dark cursor-pointer border-2 transition-all ${
-                  selectedProduct?.id === product.id 
-                    ? 'border-[#00ff88] bg-[#00ff88]/5' 
-                    : 'border-[#2a2a3a]'
+                className={`card p-6 cursor-pointer transition-all ${
+                  selectedProduct?.id === product.id
+                    ? 'border-2 border-[#f97316] bg-orange-50'
+                    : 'border-2 border-transparent hover:border-gray-300'
                 }`}
               >
-                <h3 className="text-xl font-bold text-[#e0e0e0] mb-2">{product.name || product.title || 'Account'}</h3>
-                <p className="text-[#ffd700] font-mono text-lg mb-2">₦{product.price}</p>
-                <p className="text-[#00ff88] text-sm font-mono">{product.stock || 'In Stock'} available</p>
-                {product.description && <p className="text-[#a0a0b0] text-xs mt-2">{product.description}</p>}
+                <h3 className="text-lg font-bold text-gray-800 mb-2">
+                  {product.name || product.title}
+                </h3>
+                <p className="text-2xl font-bold text-[#f97316] mb-2">
+                  ₦{parseFloat(product.price || '0').toLocaleString()}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {product.stock || 'In Stock'} available
+                </p>
               </div>
             ))}
           </div>
-          
+
           {selectedProduct && (
-            <div className="card-dark max-w-2xl">
-              <h3 className="text-2xl font-bold text-[#00f5ff] mb-4">{selectedProduct.name || selectedProduct.title}</h3>
-              <p className="text-[#ffd700] font-mono text-2xl mb-4">₦{selectedProduct.price}</p>
-              <button onClick={handleBuy} disabled={buying} className="btn-neon-green w-full">
-                {buying ? 'SECURING ACCOUNT...' : 'PURCHASE NOW'}
+            <div className="card p-6 md:p-8 max-w-2xl">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                {selectedProduct.name || selectedProduct.title}
+              </h2>
+              <p className="text-3xl font-bold text-[#f97316] mb-6">
+                ₦{parseFloat(selectedProduct.price || '0').toLocaleString()}
+              </p>
+              <button
+                onClick={handleBuy}
+                disabled={buying}
+                className="btn-primary w-full disabled:opacity-50"
+              >
+                {buying ? 'Processing...' : 'Purchase Now'}
               </button>
-              
+
               {msg && (
-                <div className={`mt-6 p-4 rounded text-center border ${
-                  msgType === 'success' 
-                    ? 'border-[#00ff88] bg-[#00ff88]/10 text-[#00ff88]' 
-                    : 'border-[#ff2a6d] bg-[#ff2a6d]/10 text-[#ff2a6d]'
+                <div className={`mt-6 p-4 rounded-xl ${
+                  msgType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                 }`}>
-                  <p className="font-mono font-bold">{msg}</p>
+                  <p className="font-semibold">{msg}</p>
                 </div>
               )}
 
               {accountData && (
-                <div className="mt-6 p-6 border border-[#00ff88]/30 bg-[#00ff88]/5 rounded-lg">
-                  <h3 className="text-[#00ff88] font-mono mb-4">{`> ACCOUNT_ACQUIRED:`}</h3>
-                  <div className="font-mono text-sm text-[#e0e0e0] break-all">
-                    {typeof accountData === 'object' ? JSON.stringify(accountData, null, 2) : accountData}
+                <div className="mt-6 p-6 bg-gray-50 rounded-xl border border-gray-200">
+                  <h3 className="font-bold text-gray-800 mb-4">Account Details:</h3>
+                  <div className="font-mono text-sm bg-white p-4 rounded-lg">
+                    {typeof accountData === 'object' 
+                      ? JSON.stringify(accountData, null, 2) 
+                      : accountData}
                   </div>
                 </div>
               )}

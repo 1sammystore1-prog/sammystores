@@ -5,50 +5,43 @@ import Sidebar from '@/components/Sidebar';
 
 export default function SmmPage() {
   const [services, setServices] = useState<any[]>([]);
-  const [service, setService] = useState('');
+  const [selectedService, setSelectedService] = useState('');
   const [link, setLink] = useState('');
   const [quantity, setQuantity] = useState('1000');
   const [loading, setLoading] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('');
-  const [balance, setBalance] = useState(0);
-  const [currentPrice, setCurrentPrice] = useState(0);
+  const [orderData, setOrderData] = useState<any>(null);
 
   useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const res = await fetch('/api/smm/services');
-        const data = await res.json();
-        if (data.success && Array.isArray(data.services)) {
-          setServices(data.services);
-          if (data.services.length > 0) {
-            setService(data.services[0].service);
-            setCurrentPrice(data.services[0].rate);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch services:', error);
-      }
-    };
     fetchServices();
   }, []);
 
-  const handleServiceChange = (e: any) => {
-    const selectedId = e.target.value;
-    setService(selectedId);
-    const selectedService = services.find((s) => s.service === selectedId);
-    if (selectedService) setCurrentPrice(selectedService.rate);
+  const fetchServices = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/smm/services');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.services)) {
+        setServices(data.services);
+      }
+    } catch (error) {
+      console.error('Failed to fetch SMM services:', error);
+    }
+    setLoading(false);
   };
 
   const handleOrder = async () => {
-    setLoading(true);
+    setPurchasing(true);
     setMsg('');
+    setOrderData(null);
     
     const token = localStorage.getItem('token');
     if (!token) {
       setMsgType('error');
-      setMsg('Please login to place orders.');
-      setLoading(false);
+      setMsg('Please login to place orders');
+      setPurchasing(false);
       return;
     }
 
@@ -59,74 +52,113 @@ export default function SmmPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ service, link, quantity, price: currentPrice })
+        body: JSON.stringify({ 
+          service: selectedService,
+          link,
+          quantity: parseInt(quantity)
+        })
       });
       const data = await res.json();
+      
       if (data.success) {
         setMsgType('success');
-        setMsg(`Order Placed! ID: ${data.orderId}`);
-        setBalance(data.newBalance);
+        setMsg('Order placed successfully!');
+        setOrderData(data);
       } else {
         setMsgType('error');
-        setMsg(data.error || 'Order Failed');
+        setMsg(data.error || 'Order failed');
       }
-    } catch (e) {
+    } catch (error: any) {
       setMsgType('error');
-      setMsg('Network Error');
+      setMsg('Network error: ' + error.message);
     }
-    setLoading(false);
-  };
-
-  const calculateTotal = () => {
-    return ((parseInt(quantity) / 1000) * currentPrice).toFixed(2);
+    setPurchasing(false);
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="flex flex-col md:flex-row">
+      <div className="flex flex-col md:flex-row max-w-7xl mx-auto">
         <Sidebar />
         <main className="flex-1 p-6 md:p-8">
           <div className="mb-8">
-            <p className="terminal-text text-sm mb-2">{`> MODULE: SMM_SERVICES`}</p>
-            <h1 className="text-3xl md:text-4xl font-bold text-[#e0e0e0]">SOCIAL MEDIA MARKETING</h1>
-            {balance > 0 && <p className="text-[#00ff88] font-mono mt-2">Current Balance: ₦{balance}</p>}
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">SMM Panel</h1>
+            <p className="text-gray-600">Boost your social media presence</p>
           </div>
-          <div className="card-dark max-w-2xl">
+
+          <div className="card p-6 md:p-8 max-w-2xl">
             <div className="mb-6">
-              <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> SELECT_SERVICE`}</label>
-              <select value={service} onChange={handleServiceChange} className="input-dark">
-                {services.length === 0 ? (
-                  <option value="">Loading services...</option>
-                ) : (
-                  services.map((s) => (
-                    <option key={s.service} value={s.service}>
-                      {s.name} - ₦{s.rate}/1k
-                    </option>
-                  ))
-                )}
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Select Service</label>
+              <select
+                value={selectedService}
+                onChange={(e) => setSelectedService(e.target.value)}
+                className="input-field"
+              >
+                <option value="">Choose a service...</option>
+                {services.map((service: any) => (
+                  <option key={service.service} value={service.service}>
+                    {service.name} - ₦{service.rate}/1000
+                  </option>
+                ))}
               </select>
             </div>
+
             <div className="mb-6">
-              <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> TARGET_LINK`}</label>
-              <input type="text" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://instagram.com/..." className="input-dark" />
-            </div>
-            <div className="mb-6">
-              <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> QUANTITY`}</label>
-              <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="input-dark" />
-            </div>
-            
-            <div className="mb-6 p-4 bg-[#1a1a25] rounded border border-[#2a2a3a] flex justify-between">
-              <span className="text-[#a0a0b0] font-mono">{`> TOTAL_COST:`}</span>
-              <span className="text-[#ffd700] font-bold font-mono">₦{calculateTotal()}</span>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Target Link</label>
+              <input
+                type="url"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                placeholder="https://instagram.com/username"
+                className="input-field"
+              />
             </div>
 
-            <button onClick={handleOrder} disabled={loading} className="btn-neon-purple w-full">
-              {loading ? 'PROCESSING...' : 'PLACE ORDER'}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
+              <input
+                type="number"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                className="input-field"
+                min="100"
+                step="100"
+              />
+            </div>
+
+            <button
+              onClick={handleOrder}
+              disabled={purchasing || !selectedService || !link}
+              className="btn-primary w-full disabled:opacity-50"
+            >
+              {purchasing ? 'Processing...' : 'Place Order'}
             </button>
+
             {msg && (
-              <div className={`mt-6 p-4 rounded text-center border ${msgType === 'success' ? 'border-[#b829dd] bg-[#b829dd]/10 text-[#b829dd]' : 'border-[#ff2a6d] bg-[#ff2a6d]/10 text-[#ff2a6d]'}`}>
-                <p className="font-mono font-bold">{msg}</p>
+              <div className={`mt-6 p-4 rounded-xl ${
+                msgType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}>
+                <p className="font-semibold">{msg}</p>
+              </div>
+            )}
+
+            {orderData && (
+              <div className="mt-6 p-6 bg-gray-50 rounded-xl border border-gray-200">
+                <h3 className="font-bold text-gray-800 mb-4">Order Details:</h3>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="text-gray-600">Order ID: </span>
+                    <span className="font-mono font-semibold">{orderData.orderId}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Service: </span>
+                    <span className="font-semibold">{selectedService}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Quantity: </span>
+                    <span className="font-semibold">{quantity}</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>

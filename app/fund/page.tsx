@@ -1,86 +1,137 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
 
 export default function FundPage() {
-  const [method, setMethod] = useState('paystack');
+  const [balance, setBalance] = useState(0);
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [msgType, setMsgType] = useState('');
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Fetch user balance
+      fetch('/api/user/balance', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) setBalance(data.balance);
+        })
+        .catch(console.error);
+    }
+  }, []);
 
   const handleFund = async () => {
-    if (!amount || parseInt(amount) < 100) {
-      setMsg('Minimum amount is 100');
-      return;
-    }
     setLoading(true);
     setMsg('');
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setMsgType('error');
+      setMsg('Please login to fund your wallet');
+      setLoading(false);
+      return;
+    }
 
-    if (method === 'paystack') {
-      try {
-        const res = await fetch('/api/wallet/fund-paystack', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'user@darknet.com', amount: parseInt(amount), userId: 'user123' })
-        });
-        const data = await res.json();
-        if (data.success && data.url) {
-          window.location.href = data.url;
-        } else {
-          setMsg(data.error || 'Failed to start payment');
-        }
-      } catch (e) { setMsg('Network Error'); }
-    } else {
-      setTimeout(() => {
-        setMsg('Request submitted! Admin will verify your transfer.');
-        setLoading(false);
-      }, 1500);
-      return; 
+    try {
+      const res = await fetch('/api/fund/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount: parseFloat(amount) })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setMsgType('success');
+        setMsg('Fund request submitted successfully! Admin will approve shortly.');
+        setAmount('');
+      } else {
+        setMsgType('error');
+        setMsg(data.error || 'Failed to submit request');
+      }
+    } catch (error: any) {
+      setMsgType('error');
+      setMsg('Network error: ' + error.message);
     }
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="flex flex-col md:flex-row">
+      <div className="flex flex-col md:flex-row max-w-7xl mx-auto">
         <Sidebar />
         <main className="flex-1 p-6 md:p-8">
           <div className="mb-8">
-            <p className="terminal-text text-sm mb-2">{`> MODULE: WALLET_FUNDING`}</p>
-            <h1 className="text-3xl md:text-4xl font-bold text-[#e0e0e0]">FUND WALLET</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">Fund Wallet</h1>
+            <p className="text-gray-600">Add funds to your wallet to make purchases</p>
           </div>
-          
-          <div className="card-dark max-w-2xl">
-            <div className="flex space-x-4 mb-6">
-              <button onClick={() => setMethod('paystack')} className={`flex-1 py-3 rounded font-mono ${method === 'paystack' ? 'bg-[#00f5ff] text-black font-bold' : 'bg-[#1a1a25] text-[#a0a0b0]'}`}>PAYSTACK</button>
-              <button onClick={() => setMethod('manual')} className={`flex-1 py-3 rounded font-mono ${method === 'manual' ? 'bg-[#ffd700] text-black font-bold' : 'bg-[#1a1a25] text-[#a0a0b0]'}`}>MANUAL</button>
+
+          <div className="card p-6 md:p-8 max-w-2xl mb-8">
+            <div className="text-center mb-8">
+              <p className="text-sm text-gray-600 mb-2">Current Balance</p>
+              <p className="text-4xl font-bold text-[#f97316]">₦{balance.toLocaleString()}</p>
             </div>
 
             <div className="mb-6">
-              <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> AMOUNT (NGN)`}</label>
-              <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="1000" className="input-dark" />
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Amount (₦)</label>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Enter amount"
+                className="input-field"
+                min="100"
+                step="100"
+              />
             </div>
 
-            {method === 'manual' && (
-              <div className="mb-6 p-4 bg-[#1a1a25] rounded border border-[#ffd700]/30">
-                <p className="text-[#ffd700] font-mono text-sm mb-2">{`> BANK_DETAILS:`}</p>
-                <p className="text-[#e0e0e0] font-mono">Bank: United Bank of Africa</p>
-                <p className="text-[#e0e0e0] font-mono">Acc: 2136011152</p>
-                <p className="text-[#e0e0e0] font-mono">Name: Akintan Ayomide Olamilekan</p>
-              </div>
-            )}
-
-            <button onClick={handleFund} disabled={loading} className="btn-neon-green w-full">
-              {loading ? 'PROCESSING...' : `FUND WITH ${method.toUpperCase()}`}
+            <button
+              onClick={handleFund}
+              disabled={loading || !amount}
+              className="btn-primary w-full disabled:opacity-50"
+            >
+              {loading ? 'Processing...' : 'Request Funding'}
             </button>
 
             {msg && (
-              <div className="mt-6 p-4 rounded text-center border border-[#00ff88] bg-[#00ff88]/10 text-[#00ff88]">
-                <p className="font-mono font-bold">{msg}</p>
+              <div className={`mt-6 p-4 rounded-xl ${
+                msgType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}>
+                <p className="font-semibold">{msg}</p>
               </div>
             )}
+          </div>
+
+          <div className="card p-6 md:p-8 max-w-2xl">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Payment Methods</h2>
+            <div className="space-y-4">
+              <div className="flex items-center p-4 bg-gray-50 rounded-xl">
+                <div className="w-12 h-12 bg-[#f97316] rounded-full flex items-center justify-center text-white text-xl mr-4">
+                  🏦
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-800">Bank Transfer</p>
+                  <p className="text-sm text-gray-600">Transfer to our bank account</p>
+                </div>
+              </div>
+              <div className="flex items-center p-4 bg-gray-50 rounded-xl">
+                <div className="w-12 h-12 bg-[#f97316] rounded-full flex items-center justify-center text-white text-xl mr-4">
+                  
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-800">Card Payment</p>
+                  <p className="text-sm text-gray-600">Pay with debit/credit card</p>
+                </div>
+              </div>
+            </div>
           </div>
         </main>
       </div>
