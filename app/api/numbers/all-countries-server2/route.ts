@@ -48,8 +48,9 @@ export async function GET(request: Request) {
     }
 
     // Server 2 returns data as an object with IDs as keys
-    // Convert object to array of services/countries
+    // Convert object to array of services/countries with proper formatting
     let result = [];
+    const seen = new Set(); // To track duplicates
     
     if (Array.isArray(data)) {
       result = data;
@@ -63,12 +64,25 @@ export async function GET(request: Request) {
       } else {
         // Convert object with keys to array format
         // Server 2 returns: {"aaa*br": {"name": "Nubank", "price": "574.64"}, ...}
-        result = Object.entries(data).map(([id, info]: [string, any]) => ({
-          id: id,
-          name: info.name || id,
-          price: info.price || 0,
-          ...info
-        }));
+        result = Object.entries(data).map(([id, info]: [string, any]) => {
+          const name = info.name || id;
+          const price = info.price || info.cost || 0;
+          const uniqueKey = `${name}-${price}`;
+          
+          // Skip duplicates
+          if (seen.has(uniqueKey)) {
+            return null;
+          }
+          seen.add(uniqueKey);
+          
+          return {
+            id: id,
+            name: name,
+            price: price,
+            formattedPrice: `₦${parseFloat(price).toLocaleString()}`,
+            ...info
+          };
+        }).filter(item => item !== null); // Remove null duplicates
       }
     }
 

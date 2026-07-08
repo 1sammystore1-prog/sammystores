@@ -191,7 +191,7 @@ export default function VirtualNumbersPage() {
                   : 'border-[#2a2a3a] bg-[#1a1a25] text-[#a0a0b0] hover:border-[#00f5ff]'
               }`}
             >
-              🇺🇸 USA Server 1
+              🇺 USA Server 1
             </button>
             <button
               onClick={() => setSelectedServer('all1')}
@@ -236,7 +236,7 @@ export default function VirtualNumbersPage() {
                 <option value="">Choose a service...</option>
                 {services.map((service: any, idx: number) => (
                   <option key={idx} value={service.id || service.slug || service}>
-                    {service.name || service}
+                    {service.name || service} {service.price && `- ₦${parseFloat(service.price).toLocaleString()}`}
                   </option>
                 ))}
               </select>
