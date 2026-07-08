@@ -4,7 +4,7 @@ export async function GET(request: Request) {
   const apiKey = process.env.YOUR_DANOTP_API_KEY;
   const { searchParams } = new URL(request.url);
   const action = searchParams.get('action') || 'getServices';
-  const country = searchParams.get('country') || 'US';
+  const country = searchParams.get('country') || 'US'; // Default to US
   
   if (!apiKey) {
     return NextResponse.json({ 
@@ -15,7 +15,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const url = `https://www.danotp.com.ng/stubs/all_server_2.php?action=${action}&api_key=${apiKey}&country=${country}`;
+    // Server 2 requires country parameter for getServices
+    const url = action === 'getServices' 
+      ? `https://www.danotp.com.ng/stubs/all_server_2.php?action=${action}&api_key=${apiKey}&country=${country}`
+      : `https://www.danotp.com.ng/stubs/all_server_2.php?action=${action}&api_key=${apiKey}`;
     
     const response = await fetch(url, {
       method: 'GET',
@@ -44,14 +47,21 @@ export async function GET(request: Request) {
       }, { status: 500 });
     }
 
+    // Convert object to array if needed
     let result = [];
     if (Array.isArray(data)) {
       result = data;
     } else if (data && typeof data === 'object') {
-      if (Array.isArray(data.services)) result = data.services;
-      else if (Array.isArray(data.countries)) result = data.countries;
-      else if (Array.isArray(data.data)) result = data.data;
-      else if (data.data && typeof data.data === 'object') result = [data.data];
+      if (Array.isArray(data.services)) {
+        result = data.services;
+      } else if (Array.isArray(data.countries)) {
+        result = data.countries;
+      } else if (Array.isArray(data.data)) {
+        result = data.data;
+      } else {
+        // Convert object to array
+        result = Object.values(data).filter(item => item && typeof item === 'object');
+      }
     }
 
     return NextResponse.json({

@@ -43,13 +43,19 @@ export async function GET(request: Request) {
       }, { status: 500 });
     }
 
+    // Convert object to array if needed
     let services = [];
     if (Array.isArray(data)) {
       services = data;
     } else if (data && typeof data === 'object') {
-      if (Array.isArray(data.services)) services = data.services;
-      else if (Array.isArray(data.data)) services = data.data;
-      else if (data.data && typeof data.data === 'object') services = [data.data];
+      if (Array.isArray(data.services)) {
+        services = data.services;
+      } else if (data.data && Array.isArray(data.data)) {
+        services = data.data;
+      } else {
+        // Convert object with numeric keys to array
+        services = Object.values(data).filter(item => item && typeof item === 'object');
+      }
     }
 
     return NextResponse.json({
