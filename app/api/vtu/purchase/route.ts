@@ -1,45 +1,72 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
+import { vtuRequest } from '@/lib/vtu';
+import { getUserId } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import Transaction from '@/models/Transaction';
-import { getUserId } from '@/lib/auth';
 
 export async function POST(request: Request) {
   await dbConnect();
   const userId = getUserId(request);
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' });
 
-  const { phone, network, amount } = await request.json();
-  const cost = parseInt(amount);
+  const { service_type, network, phone, amount, plan_id, request_id, cable_id, iuc, disco_id, meter_number, meter_type, exam_id, quantity } = await request.json();
 
   const user = await User.findById(userId);
   if (!user) return NextResponse.json({ success: false, error: 'User not found' });
+
+  // Calculate cost
+  let cost = 0;
+  if (service_type === 'airtime') cost = parseInt(amount);
+  else if (service_type === 'data' || service_type === 'cable' || service_type === 'electricity') {
+    // Fetch plan price
+    const plansRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/vtu/plans?type=${service_type}&network=${network}`);
+    const plansData = await plansRes.json();
+    const plan = plansData.plans?.find((p: any) => p.id === plan_id);
+    cost = plan ? parseFloat(plan.price) : 0;
+  } else if (service_type === 'exam') {
+    const plansRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/vtu/plans?type=exam`);
+    const plansData = await plansRes.json();
+    const plan = plansData.plans?.find((p: any) => p.id === exam_id);
+    cost = plan ? parseFloat(plan.price) * (quantity || 1) : 0;
+  }
+
   if (user.walletBalance < cost) return NextResponse.json({ success: false, error: 'Insufficient funds' });
 
-  // 1. Deduct Money
+  // Deduct money
   user.walletBalance -= cost;
   await user.save();
 
-  // 2. Save Transaction
-  await Transaction.create({
-    userId, type: 'vtu', description: `${network} Airtime/Data to ${phone}`, amount: cost, status: 'pending'
-  });
+  // Build purchase params
+  const params: any = { service_type, request_id: request_id || Date.now().toString() };
+  if (network) params.network = network;
+  if (phone) params.phone = phone;
+  if (amount) params.amount = amount;
+  if (plan_id) params.plan_id = plan_id;
+  if (cable_id) params.cable_id = cable_id;
+  if (iuc) params.iuc = iuc;
+  if (disco_id) params.disco = disco_id;
+  if (meter_number) params.meter_number = meter_number;
+  if (meter_type) params.meter_type = meter_type;
+  if (exam_id) params.exam_id = exam_id;
+  if (quantity) params.quantity = quantity;
 
-  // 3. Call Provider API (DanOTP or similar)
-  const apiKey = process.env.YOUR_DANOTP_API_KEY;
   try {
-    // Note: Adjust the URL and params based on your specific VTU provider's documentation
-    const response = await axios.get('https://danotp.com.ng/stubs/vtu.php', {
-      params: { action: 'purchase', api_key: apiKey, phone, network, amount: cost, request_id: Date.now().toString() }
+    const data = await vtuRequest('purchase', params);
+    
+    await Transaction.create({
+      userId,
+      type: 'vtu',
+      description: `${service_type.toUpperCase()} - ${phone || meter_number || iuc || 'PIN'}`,
+      amount: cost,
+      status: 'success'
     });
 
-    // Update transaction status based on response
-    const status = response.data.status === 'success' ? 'success' : 'failed';
-    await Transaction.updateOne({ userId, amount: cost, status: 'pending' }, { status });
-
-    return NextResponse.json({ success: status === 'success', message: status === 'success' ? 'Sent successfully!' : 'Provider failed', newBalance: user.walletBalance });
+    return NextResponse.json({ success: true, message: 'Purchase successful!', data, newBalance: user.walletBalance });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Network Error' });
+    // Refund on failure
+    user.walletBalance += cost;
+    await user.save();
+    return NextResponse.json({ success: false, error: 'Purchase failed' });
   }
 }
