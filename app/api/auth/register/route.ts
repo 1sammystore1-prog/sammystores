@@ -1,40 +1,38 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
-    // Connect to database
     await dbConnect();
     
-    // Parse request body
     const body = await request.json();
     const { name, email, password } = body;
 
-    // Validate fields
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'Please fill all fields' }, { status: 400 });
     }
 
-    // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return NextResponse.json({ error: 'User already exists' }, { status: 400 });
     }
 
-    // Generate API key
     const apiKey = 'sammy_' + Math.random().toString(36).substring(2, 15);
+    
+    // Hash password manually before creating user
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
     const newUser = await User.create({
       name,
       email,
-      password,
+      password: hashedPassword,
       apiKey,
       walletBalance: 0
     });
 
-    // Return success
     return NextResponse.json({
       success: true,
       message: 'Account created successfully',
