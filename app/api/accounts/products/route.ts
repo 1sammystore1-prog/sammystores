@@ -1,75 +1,69 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
+  const apiKey = process.env.YOUR_DANOTP_API_KEY;
+  
+  if (!apiKey) {
+    return NextResponse.json({ 
+      success: false, 
+      error: 'API key not configured in Vercel',
+      products: [] 
+    }, { status: 500 });
+  }
+
   try {
-    const apiKey = process.env.YOUR_DANOTP_API_KEY;
+    const url = `https://www.danotp.com.ng/stubs/buy-accounts.php?action=getProducts&api_key=${apiKey}`;
     
-    if (!apiKey) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'API key not configured',
-        products: [] 
-      }, { status: 500 });
-    }
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store'
+    });
 
-    // Call DanOTP Buy Accounts API
-    const response = await fetch(
-      `https://www.danotp.com.ng/stubs/buy-accounts.php?action=getProducts&api_key=${apiKey}`,
-      { 
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        cache: 'no-store'
-      }
-    );
-
-    const rawText = await response.text();
+    const text = await response.text();
     
     if (!response.ok) {
       return NextResponse.json({ 
         success: false, 
-        error: `HTTP ${response.status}`,
+        error: `HTTP ${response.status}: ${text.substring(0, 100)}`,
         products: [],
-        debugRaw: rawText.substring(0, 200)
+        rawResponse: text.substring(0, 200)
       }, { status: response.status });
     }
 
-    // Parse JSON response
     let data;
     try {
-      data = JSON.parse(rawText);
+      data = JSON.parse(text);
     } catch {
       return NextResponse.json({ 
         success: false, 
-        error: 'Invalid JSON response',
+        error: 'Invalid JSON from DanOTP',
         products: [],
-        debugRaw: rawText.substring(0, 300)
+        rawResponse: text.substring(0, 300)
       }, { status: 500 });
     }
 
-    // Extract products from response
+    // Handle different response formats
     let products = [];
     if (Array.isArray(data)) {
       products = data;
     } else if (data && typeof data === 'object') {
       if (Array.isArray(data.data)) products = data.data;
       else if (Array.isArray(data.products)) products = data.products;
-      else if (data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
-        products = [data.data];
-      }
+      else if (data.product) products = [data.product];
     }
 
     return NextResponse.json({
       success: true,
       products: products,
-      debugRaw: rawText.substring(0, 150)
+      count: products.length
     });
 
   } catch (error: any) {
     return NextResponse.json({ 
       success: false, 
-      error: error.message,
-      products: [],
-      debugRaw: 'Connection failed'
+      error: error.message || 'Network error',
+      products: [] 
     }, { status: 500 });
   }
 }
