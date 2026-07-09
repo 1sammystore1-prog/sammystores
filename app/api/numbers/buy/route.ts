@@ -19,30 +19,17 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   try {
-    // 1. Get price from 5sim
-    const priceData = await fiveSimRequest(`/prices/country/${country}/product/${product}/operator/any`);
-    
-    // 5sim returns prices in an object, we need to find the lowest price
-    let price = 0;
-    if (priceData && typeof priceData === 'object') {
-      const prices = Object.values(priceData).flat();
-      if (prices.length > 0) {
-        // Find the lowest price
-        price = Math.min(...prices.map((p: any) => parseFloat(p.cost)));
-      }
-    }
+    // Buy the number - use "any" for operator
+    const activation = await fiveSimRequest(`/user/buy/activation/${country}/any/${product}`, 'GET');
 
-    // Convert USD to NGN (approximate rate, you can adjust this or fetch live rate)
-    const priceInNgn = price * 1500; 
+    // Get price from response
+    const priceInNgn = activation.price * 1500; // Convert USD to NGN
 
     if (user.walletBalance < priceInNgn) {
       return NextResponse.json({ error: `Insufficient funds. You need ₦${priceInNgn.toFixed(2)}` }, { status: 400 });
     }
 
-    // 2. Buy the number
-    const activation = await fiveSimRequest(`/buy/activation/${country}/${product}`, 'POST');
-
-    // 3. Deduct money and save transaction
+    // Deduct money and save transaction
     user.walletBalance -= priceInNgn;
     await user.save();
 
@@ -63,6 +50,10 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message || 'Failed to buy number' }, { status: 500 });
+    console.error('Buy API error:', error.response?.data || error.message);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.response?.data?.error || error.message || 'Failed to buy number' 
+    }, { status: 500 });
   }
 }

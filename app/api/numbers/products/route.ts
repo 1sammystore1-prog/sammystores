@@ -10,31 +10,26 @@ export async function GET(request: Request) {
   }
 
   try {
-    // 5sim API v1 - get products for a specific country
-    const data = await fiveSimRequest(`/products/${country}`);
+    // Use "any" for operator to get all products
+    const data = await fiveSimRequest(`/guest/products/${country}/any`);
     
-    console.log('Products response for', country, ':', data);
-    
-    // 5sim returns an object where keys are product IDs
-    if (data && typeof data === 'object') {
-      const productList = Object.entries(data).map(([id, info]: [string, any]) => ({
-        id,
-        name: info.name || id
-      }));
-      
+    // 5sim returns an array of products
+    if (Array.isArray(data)) {
       return NextResponse.json({ 
         success: true, 
-        products: productList.sort((a, b) => a.name.localeCompare(b.name))
+        products: data.map((p: any) => ({
+          id: p.name,
+          name: p.name
+        })).sort((a: any, b: any) => a.name.localeCompare(b.name))
       });
     }
     
     return NextResponse.json({ success: true, products: [] });
   } catch (error: any) {
-    console.error('Products API error:', error);
+    console.error('Products API error:', error.response?.data || error.message);
     return NextResponse.json({ 
       success: false, 
-      error: error.message,
-      response: error.response?.data
+      error: error.message
     }, { status: 500 });
   }
 }

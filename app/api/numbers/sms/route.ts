@@ -10,9 +10,18 @@ export async function GET(request: Request) {
   }
 
   try {
-    const data = await fiveSimRequest(`/check/${orderId}`);
-    return NextResponse.json({ success: true, sms: data });
+    const data = await fiveSimRequest(`/user/check/${orderId}`);
+    
+    return NextResponse.json({ 
+      success: true, 
+      sms: data.sms || [],
+      status: data.status
+    });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('SMS Check API error:', error.response?.data || error.message);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message
+    }, { status: 500 });
   }
 }
