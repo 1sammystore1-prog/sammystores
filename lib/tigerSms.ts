@@ -5,10 +5,9 @@ const BASE_URL = 'https://api.tiger-sms.com/stubs/handler_api.php';
 
 if (!API_KEY) throw new Error('TIGER_SMS_API_KEY is not set');
 
-// Hardcoded mapping of TigerSMS numeric IDs to English names
-// Based on standard SMS verification provider ID lists
-const COUNTRY_ID_MAP: Record<string, string> = {
-  "6": "Russia", "7": "Ukraine", "8": "Kazakhstan", "9": "China", 
+// Complete country ID to name mapping based on TigerSMS documentation
+const COUNTRY_NAMES: Record<string, string> = {
+  "6": "Russia", "7": "Ukraine", "8": "Kazakhstan", "9": "China",
   "10": "Philippines", "12": "Indonesia", "13": "Malaysia", "14": "Vietnam",
   "15": "Thailand", "16": "India", "17": "Brazil", "18": "Colombia",
   "19": "Mexico", "20": "Argentina", "21": "Peru", "22": "Chile",
@@ -75,28 +74,23 @@ async function tigerRequest(action: string, params: Record<string, any> = {}) {
 }
 
 export async function getCountries() {
-  // Fetch prices for a popular service (Telegram) to get active country IDs
-  const priceData = await tigerRequest('getPricesV3', { service: 'tg' });
+  // Use the VERIFIED getCountries endpoint from your working code
+  const data = await tigerRequest('getCountries');
   
-  if (!priceData || typeof priceData !== 'object') return [];
+  console.log('Raw getCountries response:', JSON.stringify(data).substring(0, 500));
+  
+  if (!data || typeof data !== 'object') return [];
 
-  // Extract unique country IDs that have Telegram service available
-  const countryIds = new Set<string>();
-  Object.values(priceData).forEach((serviceInfo: any) => {
-    if (serviceInfo && typeof serviceInfo === 'object' && serviceInfo.countries) {
-      Object.keys(serviceInfo.countries).forEach(id => countryIds.add(String(id)));
-    }
-  });
-
-  // Map IDs to names using our hardcoded dictionary
-  const countries = Array.from(countryIds)
+  // Convert object keys to country array with names from our map
+  const countries = Object.keys(data)
     .map(id => ({
       id,
-      name: COUNTRY_ID_MAP[id] || `Country ${id}`
+      name: COUNTRY_NAMES[id] || `Country ${id}`
     }))
-    .filter(c => c.name !== `Country ${c.id}`) // Only keep countries we have names for
+    .filter(c => c.name !== `Country ${c.id}`) // Only keep mapped countries
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  console.log(`Mapped ${countries.length} countries`);
   return countries;
 }
 
