@@ -81,9 +81,29 @@ export async function getCountries() {
 }
 
 export async function getPrices(countryId: string) {
-  const data = await tigerRequest('getPricesV3', { country: countryId });
+  // NOTE: getPricesV3 requires BOTH `service` and `country` per Tiger-SMS's
+  // spec - it has no "browse all services for a country" mode, and calling
+  // it with country only returns a BAD_SERVICE error ("Unknown or missing
+  // service code"). Since this screen's whole purpose is letting the user
+  // browse every available service for a chosen country (the service isn't
+  // known yet), we must use the v1 `getPrices` action instead, which treats
+  // both `service` and `country` as optional filters and returns every
+  // service for a country when `service` is omitted.
+  const data = await tigerRequest('getPrices', { country: countryId });
   
-  if (typeof data === 'string' && data.startsWith('ERROR')) {
+  // v1 getPrices returns a plain-text token on failure (not JSON), one of
+  // BAD_SERVICE / BAD_COUNTRY / BAD_VALUES / BAD_KEY - not an "ERROR:..."
+  // string as previously assumed.
+  if (typeof data === 'string') {
+    if (data === 'BAD_KEY') {
+      throw new Error('TigerSMS API key is invalid or missing');
+    }
+    if (data === 'BAD_COUNTRY') {
+      throw new Error('Unknown country');
+    }
+    if (data === 'BAD_SERVICE' || data === 'BAD_VALUES') {
+      throw new Error(`Prices error: ${data}`);
+    }
     throw new Error(`Prices error: ${data}`);
   }
   
@@ -91,12 +111,12 @@ export async function getPrices(countryId: string) {
     throw new Error('No services available for this country');
   }
 
-  // getPricesV3 nests results one level deeper than the other endpoints:
-  // { "<countryId>": { "<serviceCode>": { cost, count } } } - even when a
-  // single country was requested. Unwrap that layer before reading services,
-  // otherwise every entry's serviceData is a country object with no
-  // cost/count, price computes to 0, and every service gets filtered out
-  // (this is why the services list appeared empty in the UI).
+  // getPrices nests results by country then service:
+  // { "<countryId>": { "<serviceCode>": { cost, count } } }. Unwrap that
+  // layer before reading services, otherwise every entry's serviceData is
+  // a country object with no cost/count, price computes to 0, and every
+  // service gets filtered out (this is why the services list appeared
+  // empty in the UI).
   let serviceMap: Record<string, any> = data;
   const topLevelValues = Object.values(data);
   const looksNested =
