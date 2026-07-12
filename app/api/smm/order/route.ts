@@ -4,7 +4,7 @@ import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import Transaction from '@/models/Transaction';
 import { getUserId } from '@/lib/auth';
-import { getMarkups, computeMarkup } from '@/lib/pricing';
+import { getMarkups, computeMarkup, toNgn } from '@/lib/pricing';
 
 export async function POST(request: Request) {
   await dbConnect();
@@ -29,9 +29,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid service' }, { status: 400 });
     }
 
-    const baseCost = (selectedService.rate * qty) / 1000;
+    // JAP charges in USD - convert to NGN first (same rate used across the
+    // whole app), then apply the markup on top of the NGN amount.
+    const baseCostUsd = (selectedService.rate * qty) / 1000;
+    const baseCostNgn = toNgn(baseCostUsd);
     const markups = await getMarkups();
-    const cost = computeMarkup(baseCost, markups.smm);
+    const cost = computeMarkup(baseCostNgn, markups.smm);
     if (isNaN(cost) || cost <= 0) {
       return NextResponse.json({ error: 'Invalid cost calculation' }, { status: 500 });
     }
