@@ -91,12 +91,30 @@ export async function getPrices(countryId: string) {
     throw new Error('No services available for this country');
   }
 
-  const services = Object.entries(data)
+  // getPricesV3 nests results one level deeper than the other endpoints:
+  // { "<countryId>": { "<serviceCode>": { cost, count } } } - even when a
+  // single country was requested. Unwrap that layer before reading services,
+  // otherwise every entry's serviceData is a country object with no
+  // cost/count, price computes to 0, and every service gets filtered out
+  // (this is why the services list appeared empty in the UI).
+  let serviceMap: Record<string, any> = data;
+  const topLevelValues = Object.values(data);
+  const looksNested =
+    topLevelValues.length > 0 &&
+    topLevelValues.every(
+      (v) => v && typeof v === 'object' && !('cost' in v) && !('price' in v)
+    );
+
+  if (looksNested) {
+    serviceMap = (data as any)[countryId] ?? topLevelValues[0] ?? {};
+  }
+
+  const services = Object.entries(serviceMap)
     .map(([serviceCode, serviceData]: [string, any]) => ({
       service: serviceCode,
       name: SERVICE_NAMES[serviceCode] || serviceCode.toUpperCase(),
-      price: parseFloat(serviceData.cost || serviceData.price || 0),
-      count: parseInt(serviceData.count || 0)
+      price: parseFloat(serviceData?.cost ?? serviceData?.price ?? 0),
+      count: parseInt(serviceData?.count ?? 0)
     }))
     .filter(s => s.price > 0 && s.count > 0)
     .sort((a, b) => a.price - b.price);

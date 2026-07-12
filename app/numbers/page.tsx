@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -12,6 +12,7 @@ interface Service {
   service: string;
   name: string;
   price: number;
+  priceNgn: number;
   count: number;
 }
 
@@ -38,6 +39,17 @@ export default function VirtualNumbersPage() {
   const [success, setSuccess] = useState('');
   const [order, setOrder] = useState<Order | null>(null);
   const [walletBalance, setWalletBalance] = useState(0);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const smsPollActiveRef = useRef(true);
+
+  // Stop polling if the component unmounts (e.g. user navigates away)
+  useEffect(() => {
+    smsPollActiveRef.current = true;
+    return () => {
+      smsPollActiveRef.current = false;
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    };
+  }, []);
 
   // Load countries on mount
   useEffect(() => {
@@ -156,20 +168,35 @@ export default function VirtualNumbersPage() {
     }
   };
 
-  const checkSmsStatus = async (activationId: string) => {
+  const checkSmsStatus = async (activationId: string, attempt: number = 1) => {
+    // Cap polling so this doesn't run forever in the background if the SMS
+    // never arrives (e.g. 3s * 200 = 10 minutes).
+    const MAX_ATTEMPTS = 200;
+
     try {
       setCheckingSms(true);
 
-      const res = await fetch(`/api/numbers/tiger/sms?id=${activationId}`);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/numbers/tiger/sms?id=${activationId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       const data = await res.json();
+
+      if (!smsPollActiveRef.current) return;
 
       if (data.success) {
         if (data.status === 'completed' && data.sms) {
           setOrder(prev => prev ? { ...prev, sms: data.sms, statusCode: data.statusCode } : null);
           setSuccess('SMS received!');
         } else if (data.status === 'pending') {
-          // Keep checking
-          setTimeout(() => checkSmsStatus(activationId), 3000);
+          if (attempt < MAX_ATTEMPTS) {
+            pollTimeoutRef.current = setTimeout(
+              () => checkSmsStatus(activationId, attempt + 1),
+              3000
+            );
+          } else {
+            setError('Timed out waiting for SMS. You can try requesting a new number.');
+          }
         } else if (data.status === 'cancelled' || data.status === 'released') {
           setError('Activation was cancelled or number was released');
         }
@@ -272,7 +299,7 @@ export default function VirtualNumbersPage() {
                   <option value="">Choose a service...</option>
                   {services.map((s) => (
                     <option key={s.service} value={s.service}>
-                      {s.name} - ₦{(s.price * 1550).toFixed(0)} (Qty: {s.count})
+                      {s.name} - ₦{s.priceNgn.toFixed(0)} (Qty: {s.count})
                     </option>
                   ))}
                 </select>
@@ -332,6 +359,7 @@ export default function VirtualNumbersPage() {
 
             <button
               onClick={() => {
+                if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
                 setOrder(null);
                 setSuccess('');
                 setError('');

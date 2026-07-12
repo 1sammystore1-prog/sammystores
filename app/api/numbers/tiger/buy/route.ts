@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { buyNumber, getPrices } from '@/lib/tigerSms';
+import { buyNumber, getPrices, cancelActivation } from '@/lib/tigerSms';
+import { toNgn } from '@/lib/pricing';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import Transaction from '@/models/Transaction';
@@ -26,6 +27,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
+  if (user.suspended) {
+    return NextResponse.json(
+      { error: 'Your account is suspended. Contact support.' },
+      { status: 403 }
+    );
+  }
+
   try {
     // Get live price
     const services = await getPrices(country);
@@ -38,8 +46,9 @@ export async function POST(request: Request) {
       );
     }
     
-    // Convert to NGN (Nigerian Naira)
-    const priceNgn = parseFloat((selectedService.price * 1550).toFixed(2));
+    // Convert to NGN (Nigerian Naira) using the shared rate so this can
+    // never drift from what the frontend quoted the user.
+    const priceNgn = toNgn(selectedService.price);
     
     // Validate price
     if (isNaN(priceNgn) || priceNgn <= 0) {
@@ -48,10 +57,22 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-    
-    // Check balance
-    const currentBalance = parseFloat(String(user.walletBalance)) || 0;
-    if (currentBalance < priceNgn) {
+
+    // Atomically check-and-deduct in a single DB operation. Doing the
+    // balance check and the save() as two separate steps (the previous
+    // implementation) is a classic TOCTOU race: two concurrent buy
+    // requests can both read the same balance before either writes,
+    // letting a user spend more than they actually have. The condition
+    // on walletBalance below means only one concurrent request can ever
+    // succeed against a given balance.
+    const debited = await User.findOneAndUpdate(
+      { _id: userId, walletBalance: { $gte: priceNgn } },
+      { $inc: { walletBalance: -priceNgn } },
+      { new: true }
+    );
+
+    if (!debited) {
+      const currentBalance = parseFloat(String(user.walletBalance)) || 0;
       return NextResponse.json(
         {
           error: `Insufficient balance. Need ₦${priceNgn.toFixed(2)}, Have ₦${currentBalance.toFixed(2)}`
@@ -60,36 +81,47 @@ export async function POST(request: Request) {
       );
     }
 
-    // Buy number from TigerSMS
+    // Buy number from TigerSMS. If this fails, refund the already-debited
+    // balance immediately instead of leaving the user out of pocket.
     let order;
     try {
       order = await buyNumber(country, service);
     } catch (buyError: any) {
+      await User.findByIdAndUpdate(userId, { $inc: { walletBalance: priceNgn } });
       return NextResponse.json(
         { error: `Failed to get number: ${buyError.message}` },
         { status: 400 }
       );
     }
 
-    // Deduct wallet
-    user.walletBalance = currentBalance - priceNgn;
-    
-    // Validate balance after deduction
-    if (user.walletBalance < 0) {
-      user.walletBalance = currentBalance;
-      throw new Error('Balance validation failed');
+    // Create transaction record. If this fails, the number was still
+    // issued and the wallet still debited correctly (that part is done
+    // and correct) - but we've lost the audit trail and the ability to
+    // verify ownership when checking the SMS status. Try to cancel the
+    // activation and refund so the user isn't charged for an order with
+    // no record, rather than silently losing the money.
+    try {
+      await Transaction.create({
+        userId,
+        type: 'virtual_number',
+        description: `TigerSMS: ${order.number} (${selectedService.name} - ${country})`,
+        amount: priceNgn,
+        status: 'success',
+        activationId: order.id
+      });
+    } catch (txError: any) {
+      console.error('Failed to record transaction after successful purchase:', txError);
+      await User.findByIdAndUpdate(userId, { $inc: { walletBalance: priceNgn } });
+      try {
+        await cancelActivation(order.id);
+      } catch (cancelError) {
+        console.error('Failed to cancel activation during rollback:', cancelError);
+      }
+      return NextResponse.json(
+        { error: 'Could not complete purchase, please try again' },
+        { status: 500 }
+      );
     }
-    
-    await user.save();
-
-    // Create transaction record
-    await Transaction.create({
-      userId,
-      type: 'virtual_number',
-      description: `TigerSMS: ${order.number} (${selectedService.name} - ${country})`,
-      amount: priceNgn,
-      status: 'success'
-    });
 
     return NextResponse.json({
       success: true,
@@ -97,7 +129,7 @@ export async function POST(request: Request) {
       phoneNumber: order.number,
       service: selectedService.name,
       price: priceNgn,
-      newBalance: user.walletBalance
+      newBalance: debited.walletBalance
     });
   } catch (e: any) {
     console.error('Buy number error:', e);

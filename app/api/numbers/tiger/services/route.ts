@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPrices } from '@/lib/tigerSms';
+import { toNgn } from '@/lib/pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +15,8 @@ export async function GET(req: Request) {
     }
 
     const services = await getPrices(country);
-    return NextResponse.json({ success: true, services });
+    const withNgnPrice = services.map((s) => ({ ...s, priceNgn: toNgn(s.price) }));
+    return NextResponse.json({ success: true, services: withNgnPrice });
   } catch (e: any) {
     console.error('Get services error:', e);
     return NextResponse.json(

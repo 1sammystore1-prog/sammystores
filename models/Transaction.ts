@@ -6,6 +6,7 @@ export interface ITransaction extends Document {
   description: string;
   amount: number;
   status: string;
+  activationId?: string;
 }
 
 const TransactionSchema: Schema<ITransaction> = new Schema(
@@ -15,6 +16,10 @@ const TransactionSchema: Schema<ITransaction> = new Schema(
     description: { type: String, required: true },
     amount: { type: Number, required: true },
     status: { type: String, default: 'pending' },
+    // Provider-side activation/order id (e.g. TigerSMS order id) so we can
+    // later verify that a given user actually owns a given activation
+    // before letting them read its SMS code.
+    activationId: { type: String, index: true },
   },
   { timestamps: true }
 );
