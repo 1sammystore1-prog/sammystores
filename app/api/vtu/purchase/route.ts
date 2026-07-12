@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { clubkonnectRequest } from '@/lib/clubkonnect';
+import { getDataPlans, resolveNetworkId, buyAirtime, buyDataBundle } from '@/lib/clubkonnect';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import Transaction from '@/models/Transaction';
@@ -11,8 +11,17 @@ export async function POST(request: Request) {
   const userId = getUserId(request);
   if (!userId) return NextResponse.json({ error: 'Please login' }, { status: 401 });
 
-  const { service_type, network, phone, plan_id } = await request.json();
-  if (!service_type || !network || !phone || !plan_id) {
+  const body = await request.json();
+  const { service_type, network, phone } = body;
+
+  if (service_type !== 'airtime' && service_type !== 'data') {
+    return NextResponse.json(
+      { error: `${service_type} purchases are not yet supported` },
+      { status: 400 }
+    );
+  }
+
+  if (!network || !phone) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
@@ -20,23 +29,38 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
   if (user.suspended) return NextResponse.json({ error: 'Your account is suspended. Contact support.' }, { status: 403 });
 
+  const requestId = `${userId}-${Date.now()}`;
+
   try {
-    const plans = await clubkonnectRequest('/plans', { type: service_type, network });
-    const plan = plans.find((p: any) => p.id === plan_id);
-
-    if (!plan) {
-      return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
-    }
-
-    const basePrice = parseFloat(String(plan.price));
-    if (isNaN(basePrice) || basePrice <= 0) {
-      return NextResponse.json({ error: 'Invalid plan price' }, { status: 500 });
-    }
     const markups = await getMarkups();
+    let basePrice: number;
+    let clubkonnectNetworkId: string;
+    let planCode: string | null = null;
+
+    if (service_type === 'airtime') {
+      const { amount } = body;
+      basePrice = parseFloat(String(amount));
+      if (isNaN(basePrice) || basePrice <= 0) {
+        return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
+      }
+      clubkonnectNetworkId = await resolveNetworkId(network);
+    } else {
+      const { plan_id } = body;
+      if (!plan_id) {
+        return NextResponse.json({ error: 'Missing plan' }, { status: 400 });
+      }
+      const plans = await getDataPlans();
+      const plan = plans.find((p) => p.code === String(plan_id));
+      if (!plan) {
+        return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
+      }
+      basePrice = plan.price;
+      clubkonnectNetworkId = plan.networkId;
+      planCode = plan.code;
+    }
+
     const price = computeMarkup(basePrice, markups.vtu);
 
-    // Atomic check-and-deduct - see note in numbers/tiger/buy for why this
-    // has to be a single conditional update rather than read-then-save.
     const debited = await User.findOneAndUpdate(
       { _id: userId, walletBalance: { $gte: price } },
       { $inc: { walletBalance: -price } },
@@ -47,15 +71,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Insufficient funds' }, { status: 400 });
     }
 
-    let purchase;
+    let providerResponse;
     try {
-      purchase = await clubkonnectRequest('/purchase', {
-        service_type,
-        network,
-        phone,
-        plan_id,
-        request_id: Date.now().toString()
-      });
+      providerResponse =
+        service_type === 'airtime'
+          ? await buyAirtime(clubkonnectNetworkId, basePrice, phone, requestId)
+          : await buyDataBundle(clubkonnectNetworkId, planCode as string, phone, requestId);
     } catch (providerError: any) {
       await User.findByIdAndUpdate(userId, { $inc: { walletBalance: price } });
       return NextResponse.json({ error: `Purchase failed: ${providerError.message}` }, { status: 400 });
@@ -67,7 +88,8 @@ export async function POST(request: Request) {
         type: 'vtu',
         description: `VTU: ${network} ${service_type} for ${phone}`,
         amount: price,
-        status: 'success'
+        status: 'success',
+        activationId: providerResponse?.orderid ? String(providerResponse.orderid) : requestId,
       });
     } catch (txError) {
       console.error('Failed to record VTU transaction after successful purchase:', txError);
