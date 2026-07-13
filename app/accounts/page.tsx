@@ -40,7 +40,7 @@ export default function AccountsPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#f97316] mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#b3001f] mx-auto mb-4"></div>
           <p className="text-gray-600">Loading products...</p>
         </div>
       </div>
@@ -65,8 +65,8 @@ export default function AccountsPage() {
                 onClick={() => setSelectedCategory(category)}
                 className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
                   selectedCategory === category
-                    ? 'bg-[#f97316] text-white'
-                    : 'bg-white text-gray-600 border border-gray-300 hover:border-[#f97316]'
+                    ? 'bg-[#b3001f] text-white'
+                    : 'bg-white text-gray-600 border border-gray-300 hover:border-[#b3001f]'
                 }`}
               >
                 {category}
@@ -82,17 +82,17 @@ export default function AccountsPage() {
                 <Link
                   key={product.id}
                   href={`/accounts/${product.id}`}
-                  className="card p-6 cursor-pointer transition-all border-2 border-transparent hover:border-[#f97316] block"
+                  className="card p-6 cursor-pointer transition-all border-2 border-transparent hover:border-[#b3001f] block"
                 >
                   {product.category && (
-                    <span className="inline-block text-xs font-semibold text-[#f97316] bg-orange-50 px-2 py-1 rounded-full mb-2">
+                    <span className="inline-block text-xs font-semibold text-[#b3001f] bg-primary-50 px-2 py-1 rounded-full mb-2">
                       {product.category}
                     </span>
                   )}
                   <h3 className="text-lg font-bold text-gray-800 mb-2">
                     {product.name || product.title}
                   </h3>
-                  <p className="text-2xl font-bold text-[#f97316] mb-2">
+                  <p className="text-2xl font-bold text-[#b3001f] mb-2">
                     ₦{parseFloat(product.price || '0').toLocaleString()}
                   </p>
                   <p className="text-sm text-gray-600">

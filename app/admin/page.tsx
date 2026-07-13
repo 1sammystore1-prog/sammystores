@@ -182,8 +182,8 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#1a1a25] to-[#0f0f16] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#00f5ff] mx-auto mb-4"></div>
-          <p className="text-[#00ff88] font-mono">Loading Admin Panel...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#e11d3f] mx-auto mb-4"></div>
+          <p className="text-[#25d366] font-mono">Loading Admin Panel...</p>
         </div>
       </div>
     );
@@ -193,23 +193,23 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#1a1a25] to-[#0f0f16] p-4 md:p-8">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div>
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#00f5ff] via-[#b829dd] to-[#00ff88] bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#e11d3f] via-[#8c0018] to-[#25d366] bg-clip-text text-transparent">
             ADMIN DASHBOARD
           </h1>
           <p className="text-[#a0a0b0] font-mono mt-2">{`> SYSTEM_CONTROL_CENTER`}</p>
         </div>
-        <Link href="/dashboard" className="px-6 py-3 bg-gradient-to-r from-[#00f5ff] to-[#0080ff] rounded-lg font-bold text-black hover:shadow-[0_0_20px_rgba(0,245,255,0.5)] transition-all">
+        <Link href="/dashboard" className="px-6 py-3 bg-gradient-to-r from-[#e11d3f] to-[#b3001f] rounded-lg font-bold text-black hover:shadow-[0_0_20px_rgba(225,29,63,0.5)] transition-all">
           {`> EXIT_TO_SITE`}
         </Link>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-gradient-to-br from-[#1a1a25] to-[#0f0f16] border border-[#00f5ff]/30 rounded-xl p-6 hover:shadow-[0_0_30px_rgba(0,245,255,0.3)] transition-all">
+        <div className="bg-gradient-to-br from-[#1a1a25] to-[#0f0f16] border border-[#e11d3f]/30 rounded-xl p-6 hover:shadow-[0_0_30px_rgba(225,29,63,0.3)] transition-all">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-[#a0a0b0] font-mono text-sm">{`> TOTAL_USERS`}</h3>
             <span className="text-3xl">👥</span>
           </div>
-          <p className="text-4xl font-bold text-[#00f5ff]">{stats.totalUsers}</p>
+          <p className="text-4xl font-bold text-[#e11d3f]">{stats.totalUsers}</p>
         </div>
 
         <div className="bg-gradient-to-br from-[#1a1a25] to-[#0f0f16] border border-[#ffd700]/30 rounded-xl p-6 hover:shadow-[0_0_30px_rgba(255,215,0,0.3)] transition-all">
@@ -220,26 +220,26 @@ export default function AdminPage() {
           <p className="text-4xl font-bold text-[#ffd700]">₦{stats.totalWalletBalance.toLocaleString()}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-[#1a1a25] to-[#0f0f16] border border-[#00ff88]/30 rounded-xl p-6 hover:shadow-[0_0_30px_rgba(0,255,136,0.3)] transition-all">
+        <div className="bg-gradient-to-br from-[#1a1a25] to-[#0f0f16] border border-[#25d366]/30 rounded-xl p-6 hover:shadow-[0_0_30px_rgba(37,211,102,0.3)] transition-all">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-[#a0a0b0] font-mono text-sm">{`> TOTAL_TRANSACTIONS`}</h3>
             <span className="text-3xl">📊</span>
           </div>
-          <p className="text-4xl font-bold text-[#00ff88]">{stats.totalTransactions}</p>
+          <p className="text-4xl font-bold text-[#25d366]">{stats.totalTransactions}</p>
         </div>
       </div>
 
       {msg && (
-        <div className={`mb-6 p-4 rounded-lg border ${msgType === 'success' ? 'border-[#00ff88] bg-[#00ff88]/10 text-[#00ff88]' : 'border-[#ff2a6d] bg-[#ff2a6d]/10 text-[#ff2a6d]'}`}>
+        <div className={`mb-6 p-4 rounded-lg border ${msgType === 'success' ? 'border-[#25d366] bg-[#25d366]/10 text-[#25d366]' : 'border-[#ff2a6d] bg-[#ff2a6d]/10 text-[#ff2a6d]'}`}>
           <p className="font-mono font-bold">{msg}</p>
         </div>
       )}
 
       <div className="flex gap-4 mb-6 flex-wrap">
-        <button onClick={() => setActiveTab('users')} className={`px-6 py-3 rounded-lg font-mono font-bold transition-all ${activeTab === 'users' ? 'bg-[#00f5ff] text-black' : 'bg-[#1a1a25] text-[#a0a0b0] border border-[#2a2a3a]'}`}>
+        <button onClick={() => setActiveTab('users')} className={`px-6 py-3 rounded-lg font-mono font-bold transition-all ${activeTab === 'users' ? 'bg-[#e11d3f] text-black' : 'bg-[#1a1a25] text-[#a0a0b0] border border-[#2a2a3a]'}`}>
           👥 USERS
         </button>
-        <button onClick={() => setActiveTab('transactions')} className={`px-6 py-3 rounded-lg font-mono font-bold transition-all ${activeTab === 'transactions' ? 'bg-[#b829dd] text-white' : 'bg-[#1a1a25] text-[#a0a0b0] border border-[#2a2a3a]'}`}>
+        <button onClick={() => setActiveTab('transactions')} className={`px-6 py-3 rounded-lg font-mono font-bold transition-all ${activeTab === 'transactions' ? 'bg-[#8c0018] text-white' : 'bg-[#1a1a25] text-[#a0a0b0] border border-[#2a2a3a]'}`}>
            TRANSACTIONS
         </button>
         <button onClick={() => setActiveTab('pricing')} className={`px-6 py-3 rounded-lg font-mono font-bold transition-all ${activeTab === 'pricing' ? 'bg-[#ffd700] text-black' : 'bg-[#1a1a25] text-[#a0a0b0] border border-[#2a2a3a]'}`}>
@@ -256,7 +256,7 @@ export default function AdminPage() {
               placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2 bg-[#0f0f16] border border-[#2a2a3a] rounded-lg text-[#e0e0e0] focus:border-[#00f5ff] focus:outline-none"
+              className="px-4 py-2 bg-[#0f0f16] border border-[#2a2a3a] rounded-lg text-[#e0e0e0] focus:border-[#e11d3f] focus:outline-none"
             />
           </div>
 
@@ -264,11 +264,11 @@ export default function AdminPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#2a2a3a]">
-                  <th className="text-left p-4 text-[#00f5ff] font-mono text-sm">USER</th>
-                  <th className="text-left p-4 text-[#00f5ff] font-mono text-sm">EMAIL</th>
-                  <th className="text-left p-4 text-[#00f5ff] font-mono text-sm">BALANCE</th>
-                  <th className="text-left p-4 text-[#00f5ff] font-mono text-sm">STATUS</th>
-                  <th className="text-left p-4 text-[#00f5ff] font-mono text-sm">ACTIONS</th>
+                  <th className="text-left p-4 text-[#e11d3f] font-mono text-sm">USER</th>
+                  <th className="text-left p-4 text-[#e11d3f] font-mono text-sm">EMAIL</th>
+                  <th className="text-left p-4 text-[#e11d3f] font-mono text-sm">BALANCE</th>
+                  <th className="text-left p-4 text-[#e11d3f] font-mono text-sm">STATUS</th>
+                  <th className="text-left p-4 text-[#e11d3f] font-mono text-sm">ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
@@ -276,7 +276,7 @@ export default function AdminPage() {
                   <tr key={user._id} className="border-b border-[#2a2a3a] hover:bg-[#1a1a25]/50 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#00f5ff] to-[#b829dd] flex items-center justify-center text-black font-bold">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#e11d3f] to-[#8c0018] flex items-center justify-center text-black font-bold">
                           {user.name.charAt(0).toUpperCase()}
                         </div>
                         <span className="text-[#e0e0e0]">{user.name}</span>
@@ -294,21 +294,21 @@ export default function AdminPage() {
                           SUSPENDED
                         </span>
                       ) : (
-                        <span className="px-3 py-1 bg-[#00ff88]/10 border border-[#00ff88]/30 rounded-full text-[#00ff88] font-mono text-xs">
+                        <span className="px-3 py-1 bg-[#25d366]/10 border border-[#25d366]/30 rounded-full text-[#25d366] font-mono text-xs">
                           ACTIVE
                         </span>
                       )}
                     </td>
                     <td className="p-4">
                       <div className="flex flex-wrap gap-2">
-                        <button onClick={() => setModal({ type: 'add', userId: user._id, userName: user.name })} className="px-3 py-1 bg-[#00ff88]/20 border border-[#00ff88]/30 rounded text-[#00ff88] text-xs font-mono hover:bg-[#00ff88]/30">
+                        <button onClick={() => setModal({ type: 'add', userId: user._id, userName: user.name })} className="px-3 py-1 bg-[#25d366]/20 border border-[#25d366]/30 rounded text-[#25d366] text-xs font-mono hover:bg-[#25d366]/30">
                           + ADD
                         </button>
                         <button onClick={() => setModal({ type: 'deduct', userId: user._id, userName: user.name })} className="px-3 py-1 bg-[#ff2a6d]/20 border border-[#ff2a6d]/30 rounded text-[#ff2a6d] text-xs font-mono hover:bg-[#ff2a6d]/30">
                           - DEDUCT
                         </button>
                         {user.suspended ? (
-                          <button onClick={() => setModal({ type: 'unsuspend', userId: user._id, userName: user.name })} className="px-3 py-1 bg-[#00f5ff]/20 border border-[#00f5ff]/30 rounded text-[#00f5ff] text-xs font-mono hover:bg-[#00f5ff]/30">
+                          <button onClick={() => setModal({ type: 'unsuspend', userId: user._id, userName: user.name })} className="px-3 py-1 bg-[#e11d3f]/20 border border-[#e11d3f]/30 rounded text-[#e11d3f] text-xs font-mono hover:bg-[#e11d3f]/30">
                             UNSUSPEND
                           </button>
                         ) : (
@@ -336,11 +336,11 @@ export default function AdminPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#2a2a3a]">
-                  <th className="text-left p-4 text-[#00f5ff] font-mono text-sm">TYPE</th>
-                  <th className="text-left p-4 text-[#00f5ff] font-mono text-sm">DESCRIPTION</th>
-                  <th className="text-left p-4 text-[#00f5ff] font-mono text-sm">AMOUNT</th>
-                  <th className="text-left p-4 text-[#00f5ff] font-mono text-sm">STATUS</th>
-                  <th className="text-left p-4 text-[#00f5ff] font-mono text-sm">DATE</th>
+                  <th className="text-left p-4 text-[#e11d3f] font-mono text-sm">TYPE</th>
+                  <th className="text-left p-4 text-[#e11d3f] font-mono text-sm">DESCRIPTION</th>
+                  <th className="text-left p-4 text-[#e11d3f] font-mono text-sm">AMOUNT</th>
+                  <th className="text-left p-4 text-[#e11d3f] font-mono text-sm">STATUS</th>
+                  <th className="text-left p-4 text-[#e11d3f] font-mono text-sm">DATE</th>
                 </tr>
               </thead>
               <tbody>
@@ -350,7 +350,7 @@ export default function AdminPage() {
                     <td className="p-4 text-[#a0a0b0] text-sm">{txn.description}</td>
                     <td className="p-4 text-[#ffd700] font-mono">₦{txn.amount?.toLocaleString()}</td>
                     <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs font-mono ${txn.status === 'success' ? 'bg-[#00ff88]/10 text-[#00ff88]' : txn.status === 'pending' ? 'bg-[#ffd700]/10 text-[#ffd700]' : 'bg-[#ff2a6d]/10 text-[#ff2a6d]'}`}>
+                      <span className={`px-2 py-1 rounded text-xs font-mono ${txn.status === 'success' ? 'bg-[#25d366]/10 text-[#25d366]' : txn.status === 'pending' ? 'bg-[#ffd700]/10 text-[#ffd700]' : 'bg-[#ff2a6d]/10 text-[#ff2a6d]'}`}>
                         {txn.status.toUpperCase()}
                       </span>
                     </td>
@@ -373,7 +373,7 @@ export default function AdminPage() {
           </p>
 
           {pricingMsg && (
-            <div className={`mb-6 p-4 rounded-lg border ${pricingMsgType === 'success' ? 'border-[#00ff88] bg-[#00ff88]/10 text-[#00ff88]' : 'border-[#ff2a6d] bg-[#ff2a6d]/10 text-[#ff2a6d]'}`}>
+            <div className={`mb-6 p-4 rounded-lg border ${pricingMsgType === 'success' ? 'border-[#25d366] bg-[#25d366]/10 text-[#25d366]' : 'border-[#ff2a6d] bg-[#ff2a6d]/10 text-[#ff2a6d]'}`}>
               <p className="font-mono font-bold">{pricingMsg}</p>
             </div>
           )}
@@ -381,14 +381,14 @@ export default function AdminPage() {
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             {Object.keys(CATEGORY_LABELS).map((category) => (
               <div key={category} className="bg-[#0f0f16] border border-[#2a2a3a] rounded-xl p-5">
-                <label className="block text-[#00f5ff] font-mono text-sm mb-2">{CATEGORY_LABELS[category]}</label>
+                <label className="block text-[#e11d3f] font-mono text-sm mb-2">{CATEGORY_LABELS[category]}</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
                     value={markupInputs[category]}
                     onChange={(e) => setMarkupInputs({ ...markupInputs, [category]: e.target.value })}
                     step="1"
-                    className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-[#e0e0e0] focus:border-[#00f5ff] focus:outline-none"
+                    className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-[#e0e0e0] focus:border-[#e11d3f] focus:outline-none"
                   />
                   <span className="text-[#a0a0b0] font-mono">%</span>
                 </div>
@@ -423,22 +423,22 @@ export default function AdminPage() {
             {(modal.type === 'add' || modal.type === 'deduct') && (
               <>
                 <div className="mb-4">
-                  <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> AMOUNT (₦)`}</label>
+                  <label className="block text-[#e11d3f] text-sm font-mono mb-2">{`> AMOUNT (₦)`}</label>
                   <input
                     type="number"
                     value={modalAmount}
                     onChange={(e) => setModalAmount(e.target.value)}
-                    className="w-full px-4 py-2 bg-[#0f0f16] border border-[#2a2a3a] rounded-lg text-[#e0e0e0] focus:border-[#00f5ff] focus:outline-none"
+                    className="w-full px-4 py-2 bg-[#0f0f16] border border-[#2a2a3a] rounded-lg text-[#e0e0e0] focus:border-[#e11d3f] focus:outline-none"
                     placeholder="Enter amount"
                   />
                 </div>
                 <div className="mb-4">
-                  <label className="block text-[#00f5ff] text-sm font-mono mb-2">{`> REASON (Optional)`}</label>
+                  <label className="block text-[#e11d3f] text-sm font-mono mb-2">{`> REASON (Optional)`}</label>
                   <input
                     type="text"
                     value={modalReason}
                     onChange={(e) => setModalReason(e.target.value)}
-                    className="w-full px-4 py-2 bg-[#0f0f16] border border-[#2a2a3a] rounded-lg text-[#e0e0e0] focus:border-[#00f5ff] focus:outline-none"
+                    className="w-full px-4 py-2 bg-[#0f0f16] border border-[#2a2a3a] rounded-lg text-[#e0e0e0] focus:border-[#e11d3f] focus:outline-none"
                     placeholder="Reason for transaction"
                   />
                 </div>
@@ -469,10 +469,10 @@ export default function AdminPage() {
                 onClick={handleAction}
                 disabled={actionLoading || (modalAmount === '' && (modal.type === 'add' || modal.type === 'deduct'))}
                 className={`flex-1 py-3 rounded-lg font-bold font-mono transition-all ${
-                  modal.type === 'add' ? 'bg-[#00ff88] text-black hover:bg-[#00ff88]/80' :
+                  modal.type === 'add' ? 'bg-[#25d366] text-black hover:bg-[#25d366]/80' :
                   modal.type === 'deduct' ? 'bg-[#ff2a6d] text-white hover:bg-[#ff2a6d]/80' :
                   modal.type === 'suspend' ? 'bg-[#ffd700] text-black hover:bg-[#ffd700]/80' :
-                  modal.type === 'unsuspend' ? 'bg-[#00f5ff] text-black hover:bg-[#00f5ff]/80' :
+                  modal.type === 'unsuspend' ? 'bg-[#e11d3f] text-black hover:bg-[#e11d3f]/80' :
                   'bg-[#ff2a6d] text-white hover:bg-[#ff2a6d]/80'
                 } disabled:opacity-50`}
               >

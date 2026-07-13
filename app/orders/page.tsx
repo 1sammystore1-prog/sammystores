@@ -153,7 +153,7 @@ function OrdersInner() {
                               <td colSpan={6} className="p-4">
                                 <div className="max-w-xl">
                                   {order.metadata?.category && (
-                                    <p className="text-xs text-[#f97316] mb-2">{order.metadata.category}</p>
+                                    <p className="text-xs text-[#b3001f] mb-2">{order.metadata.category}</p>
                                   )}
                                   <h4 className="text-[#e0e0e0] font-bold mb-2">Account Details</h4>
                                   <div className="bg-[#0a0a0f] rounded-lg p-4 mb-3">

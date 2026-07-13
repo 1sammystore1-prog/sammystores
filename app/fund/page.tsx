@@ -77,7 +77,7 @@ export default function FundPage() {
           <div className="card p-6 md:p-8 max-w-2xl mb-8">
             <div className="text-center mb-8">
               <p className="text-sm text-gray-600 mb-2">Current Balance</p>
-              <p className="text-4xl font-bold text-[#f97316]">₦{balance.toLocaleString()}</p>
+              <p className="text-4xl font-bold text-[#b3001f]">₦{balance.toLocaleString()}</p>
             </div>
 
             <div className="mb-6">
@@ -113,7 +113,7 @@ export default function FundPage() {
           <div className="card p-6 md:p-8 max-w-2xl">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Payment Method</h2>
             <div className="flex items-center p-4 bg-gray-50 rounded-xl">
-              <div className="w-12 h-12 bg-[#f97316] rounded-full flex items-center justify-center text-white text-xl mr-4">
+              <div className="w-12 h-12 bg-[#b3001f] rounded-full flex items-center justify-center text-white text-xl mr-4">
                 💳
               </div>
               <div>

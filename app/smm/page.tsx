@@ -206,7 +206,7 @@ export default function SmmPage() {
                       />
                       {customQuantity && (
                         <p className="text-sm text-gray-600 mt-2">
-                          Price: <span className="font-bold text-[#f97316]">
+                          Price: <span className="font-bold text-[#b3001f]">
                             ₦{priceFor(parseInt(customQuantity) || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                           </span>
                         </p>
