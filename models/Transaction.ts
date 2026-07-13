@@ -1,15 +1,27 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
-const transactionSchema = new mongoose.Schema({
+export interface ITransaction extends Document {
+  userId: mongoose.Types.ObjectId;
+  type: string;
+  description: string;
+  amount: number;
+  status: string;
+  metadata?: any;
+  reference?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const transactionSchema = new Schema<ITransaction>({
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
   type: {
     type: String,
     required: true,
-    enum: ['deposit', 'withdrawal', 'account_purchase', 'transfer', 'refund']
+    enum: ['deposit', 'withdrawal', 'account_purchase', 'transfer', 'refund', 'manual_fund_request']
   },
   description: {
     type: String,
@@ -26,7 +38,7 @@ const transactionSchema = new mongoose.Schema({
     default: 'pending'
   },
   metadata: {
-    type: mongoose.Schema.Types.Mixed,
+    type: Schema.Types.Mixed,
     default: {}
   },
   reference: {
@@ -38,5 +50,6 @@ const transactionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Prevent overwriting the model if it already exists (common in Next.js hot reloading)
-export default mongoose.models.Transaction || mongoose.model('Transaction', transactionSchema);
+// Prevent overwriting the model if it already exists
+const Transaction = mongoose.models.Transaction || mongoose.model<ITransaction>('Transaction', transactionSchema);
+export default Transaction;
