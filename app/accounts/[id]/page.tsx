@@ -47,6 +47,44 @@ export default function AccountDetailPage() {
   const unitPrice = product ? parseFloat(product.price || '0') : 0;
   const totalPrice = unitPrice * quantity;
 
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [cartMsg, setCartMsg] = useState('');
+
+  const handleAddToCart = async () => {
+    if (!product) return;
+    setAddingToCart(true);
+    setCartMsg('');
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setCartMsg('Please login to add to cart');
+      setAddingToCart(false);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          productId: product.id,
+          name: product.name || product.title,
+          category: product.category,
+          unitPrice,
+          quantity,
+        }),
+      });
+      const data = await res.json();
+      setCartMsg(data.success ? 'Added to cart!' : data.error || 'Failed to add to cart');
+    } catch (error: any) {
+      setCartMsg('Network error: ' + error.message);
+    }
+    setAddingToCart(false);
+  };
+
   const handleBuy = async () => {
     if (!product) return;
     setBuying(true);
@@ -180,13 +218,28 @@ export default function AccountDetailPage() {
                 </div>
               </div>
 
-              <button
-                onClick={handleBuy}
-                disabled={buying}
-                className="btn-primary w-full disabled:opacity-50"
-              >
-                {buying ? 'Processing...' : 'Purchase Now'}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleAddToCart}
+                  disabled={addingToCart}
+                  className="btn-secondary flex-1 disabled:opacity-50"
+                >
+                  {addingToCart ? 'Adding...' : 'Add to Cart'}
+                </button>
+                <button
+                  onClick={handleBuy}
+                  disabled={buying}
+                  className="btn-primary flex-1 disabled:opacity-50"
+                >
+                  {buying ? 'Processing...' : 'Purchase Now'}
+                </button>
+              </div>
+
+              {cartMsg && (
+                <div className="mt-3 p-3 rounded-lg bg-primary-50 text-[#b3001f] text-sm font-semibold">
+                  {cartMsg}
+                </div>
+              )}
 
               {msg && (
                 <div className="mt-4 p-3 rounded-lg bg-red-100 text-red-800 text-sm font-semibold">

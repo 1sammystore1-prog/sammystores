@@ -7,6 +7,7 @@ import ThemeToggle from './ThemeToggle';
 export default function Navbar() {
   const pathname = usePathname();
   const [balance, setBalance] = useState<number | null>(null);
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -17,6 +18,17 @@ export default function Navbar() {
       .then((res) => res.json())
       .then((data) => {
         if (typeof data.balance === 'number') setBalance(data.balance);
+      })
+      .catch(() => {});
+
+    fetch('/api/cart', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.items)) {
+          setCartCount(data.items.reduce((sum: number, i: any) => sum + i.quantity, 0));
+        }
       })
       .catch(() => {});
   }, [pathname]);
@@ -38,6 +50,18 @@ export default function Navbar() {
             <span className="text-[#e11d3f] font-bold">₦{balance.toLocaleString()}</span>
           </Link>
         )}
+        <Link
+          href="/cart"
+          className="relative p-2 rounded-lg hover:bg-[#1a1a25] transition-colors"
+          aria-label="Cart"
+        >
+          <span className="text-xl">🛒</span>
+          {cartCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-[#e11d3f] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+              {cartCount > 9 ? '9+' : cartCount}
+            </span>
+          )}
+        </Link>
         <ThemeToggle />
         <Link
           href="/dashboard"

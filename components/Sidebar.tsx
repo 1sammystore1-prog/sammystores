@@ -7,6 +7,7 @@ const LINKS = [
   { href: '/numbers', label: 'VIRTUAL NUMBERS' },
   { href: '/smm', label: 'SMM PANEL' },
   { href: '/accounts', label: 'BUY ACCOUNTS' },
+  { href: '/cart', label: 'CART' },
   { href: '/fund', label: 'FUND WALLET' },
   { href: '/orders', label: 'MY ORDERS' },
   { href: '/history', label: 'TRANSACTION HISTORY' },
