@@ -6,19 +6,34 @@ import Link from 'next/link';
 
 export default function DashboardPage() {
   const [balance, setBalance] = useState(0);
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const [activeNumbers, setActiveNumbers] = useState(0);
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
     const fetchBalance = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      
       const res = await fetch('/api/wallet/balance', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.balance !== undefined) setBalance(data.balance);
     };
+
+    const fetchStats = async () => {
+      const res = await fetch('/api/dashboard/stats', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTotalTransactions(data.totalTransactions);
+        setActiveNumbers(data.activeNumbers);
+      }
+    };
+
     fetchBalance();
+    fetchStats();
   }, []);
 
   return (
@@ -43,12 +58,12 @@ export default function DashboardPage() {
             
             <div className="card-dark">
               <h3 className="text-[#8c0018] text-sm font-mono mb-2">{`> TOTAL_TRANSACTIONS`}</h3>
-              <p className="text-3xl md:text-4xl font-bold text-[#e0e0e0]">0</p>
+              <p className="text-3xl md:text-4xl font-bold text-[#e0e0e0]">{totalTransactions}</p>
             </div>
-            
+
             <div className="card-dark">
               <h3 className="text-[#25d366] text-sm font-mono mb-2">{`> ACTIVE_NUMBERS`}</h3>
-              <p className="text-3xl md:text-4xl font-bold text-[#e0e0e0]">0</p>
+              <p className="text-3xl md:text-4xl font-bold text-[#e0e0e0]">{activeNumbers}</p>
             </div>
           </div>
 
@@ -65,7 +80,7 @@ export default function DashboardPage() {
               <p className="text-[#a0a0b0] text-sm">Social media boost</p>
             </Link>
             <Link href="/accounts" className="card-dark group">
-              <div className="text-4xl mb-4"></div>
+              <div className="text-4xl mb-4">🛍️</div>
               <h3 className="text-xl font-bold mb-2 text-[#e6a817]">Buy Accounts</h3>
               <p className="text-[#a0a0b0] text-sm">Pre-verified accounts</p>
             </Link>

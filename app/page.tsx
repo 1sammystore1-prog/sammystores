@@ -81,7 +81,7 @@ export default function Home() {
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Link href="/social" className="card p-6 text-center group">
+            <Link href="/accounts" className="card p-6 text-center group">
               <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-primary-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                 <span className="text-white text-3xl">📱</span>
               </div>
@@ -97,7 +97,7 @@ export default function Home() {
               <p className="text-gray-600 text-sm">Your online identity simplified</p>
             </Link>
 
-            <Link href="/boost" className="card p-6 text-center group">
+            <Link href="/smm" className="card p-6 text-center group">
               <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                 <span className="text-white text-3xl"></span>
               </div>

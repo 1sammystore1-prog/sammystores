@@ -223,7 +223,7 @@ export default function VirtualNumbersPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 p-4">
       {/* Header */}
       <nav className="bg-gray-800 shadow-lg p-4 mb-6 rounded-lg border border-gray-700">
-        <Link href="/" className="text-2xl font-bold">
+        <Link href="/dashboard" className="text-2xl font-bold">
           <span className="text-[#b3001f]">SAMMY</span>
           <span className="text-white">STORE</span>
         </Link>

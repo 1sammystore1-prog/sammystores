@@ -3,13 +3,59 @@ import axios from 'axios';
 const API_KEY = process.env.TIGER_SMS_API_KEY;
 const BASE_URL = 'https://api.tiger-sms.com/stubs/handler_api.php';
 
-// Service code to name mapping
-const SERVICE_NAMES: Record<string, string> = {
+// Fallback names used only if the live getServicesList call fails entirely
+const FALLBACK_SERVICE_NAMES: Record<string, string> = {
   "wa": "WhatsApp", "tg": "Telegram", "go": "Google", "ig": "Instagram",
   "fb": "Facebook", "tw": "Twitter", "vk": "VK", "ok": "OK",
   "mm": "Viber", "vi": "Viber", "ub": "Uber", "ya": "Yandex",
   "li": "LinkedIn", "sn": "Snapchat", "dc": "Discord", "nf": "Netflix"
 };
+
+// Cache the code->name map in memory since TigerSMS's service catalog rarely
+// changes - avoids an extra API round-trip on every single services request.
+let serviceNameCache: Record<string, string> | null = null;
+let serviceNameCacheAt = 0;
+const SERVICE_NAME_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours
+
+async function getServiceNameMap(): Promise<Record<string, string>> {
+  const now = Date.now();
+  if (serviceNameCache && now - serviceNameCacheAt < SERVICE_NAME_CACHE_TTL) {
+    return serviceNameCache;
+  }
+
+  try {
+    const data = await tigerRequest('getServicesList', { lang: 'en' });
+    const map: Record<string, string> = {};
+
+    const list = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.services)
+      ? data.services
+      : null;
+
+    if (list) {
+      for (const item of list) {
+        const code = item.code || item.service;
+        const name = item.name || item.title;
+        if (code && name) map[code] = name;
+      }
+    } else if (data && typeof data === 'object') {
+      for (const [code, name] of Object.entries(data)) {
+        if (typeof name === 'string') map[code] = name;
+      }
+    }
+
+    if (Object.keys(map).length > 0) {
+      serviceNameCache = map;
+      serviceNameCacheAt = now;
+      return map;
+    }
+  } catch (e: any) {
+    console.error('[TigerSMS] Failed to fetch service names, using fallback list:', e.message);
+  }
+
+  return FALLBACK_SERVICE_NAMES;
+}
 
 async function tigerRequest(action: string, params: Record<string, any> = {}) {
   if (!API_KEY) throw new Error('TIGER_SMS_API_KEY is not set');
@@ -128,10 +174,12 @@ export async function getPrices(countryId: string) {
     serviceMap = (data as any)[countryId] ?? topLevelValues[0] ?? {};
   }
 
+  const nameMap = await getServiceNameMap();
+
   const services = Object.entries(serviceMap)
     .map(([serviceCode, serviceData]: [string, any]) => ({
       service: serviceCode,
-      name: SERVICE_NAMES[serviceCode] || serviceCode.toUpperCase(),
+      name: nameMap[serviceCode] || FALLBACK_SERVICE_NAMES[serviceCode] || serviceCode.toUpperCase(),
       price: parseFloat(serviceData?.cost ?? serviceData?.price ?? 0),
       count: parseInt(serviceData?.count ?? 0)
     }))
