@@ -1,0 +1,202 @@
+'use client';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Navbar from '@/components/Navbar';
+import Sidebar from '@/components/Sidebar';
+
+function isVideoUrl(url: string) {
+  return /youtube\.com|youtu\.be|vimeo\.com/.test(url);
+}
+
+function toEmbedUrl(url: string) {
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+  return url;
+}
+
+export default function AccountDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const productId = params?.id as string;
+
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [quantity, setQuantity] = useState(1);
+  const [buying, setBuying] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const res = await fetch('/api/accounts/products');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.products)) {
+          const found = data.products.find((p: any) => String(p.id) === String(productId));
+          setProduct(found || null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch product:', error);
+      }
+      setLoading(false);
+    };
+    fetchProduct();
+  }, [productId]);
+
+  const maxQty = product?.stock && !isNaN(parseInt(product.stock)) ? parseInt(product.stock) : undefined;
+  const unitPrice = product ? parseFloat(product.price || '0') : 0;
+  const totalPrice = unitPrice * quantity;
+
+  const handleBuy = async () => {
+    if (!product) return;
+    setBuying(true);
+    setMsg('');
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setMsg('Please login to purchase');
+      setBuying(false);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/accounts/buy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ productId: product.id, amount: quantity })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+         router.push(`/orders?highlight=${data.orderId}`);
+      } else {
+        setMsg(data.error || 'Purchase failed');
+      }
+    } catch (error: any) {
+      setMsg('Network error: ' + error.message);
+    }
+    setBuying(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex flex-col md:flex-row max-w-7xl mx-auto">
+          <Sidebar />
+          <main className="flex-1 p-6 md:p-8">
+            <p className="text-gray-600 mb-4">Product not found.</p>
+            <Link href="/accounts" className="text-[#f97316] font-semibold">← Back to Buy Accounts</Link>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <div className="flex flex-col md:flex-row max-w-7xl mx-auto">
+        <Sidebar />
+        <main className="flex-1 p-6 md:p-8">
+          <Link href="/accounts" className="text-sm text-gray-500 hover:text-[#f97316] mb-4 inline-block">
+            ← Back to Buy Accounts
+          </Link>
+
+          <div className="mb-8">
+            {product.category && (
+              <span className="inline-block text-xs font-semibold text-[#f97316] bg-orange-50 px-2 py-1 rounded-full mb-3">
+                {product.category}
+              </span>
+            )}
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
+              {product.name || product.title}
+            </h1>
+            <p className="text-gray-600">{product.stock || 'In Stock'} available</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="md:col-span-2 space-y-6">
+              {product.instructions && (
+                <div className="card p-6">
+                  <h2 className="text-lg font-bold text-gray-800 mb-3">How to Login & Use This Account</h2>
+                  <p className="text-gray-700 whitespace-pre-line">{product.instructions}</p>
+                </div>
+              )}
+
+              {product.video && (
+                <div className="card p-6">
+                  <h2 className="text-lg font-bold text-gray-800 mb-3">Video Tutorial</h2>
+                  {isVideoUrl(product.video) ? (
+                    <div className="aspect-video">
+                      <iframe
+                        src={toEmbedUrl(product.video)}
+                        className="w-full h-full rounded-lg"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <a href={product.video} target="_blank" rel="noopener noreferrer" className="text-[#f97316] font-semibold underline">
+                      Watch Tutorial
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {!product.instructions && !product.video && (
+                <div className="card p-6 text-gray-500 text-sm">
+                  No additional instructions provided for this product.
+                </div>
+              )}
+            </div>
+
+            <div className="card p-6 h-fit">
+              <p className="text-sm text-gray-600 mb-1">Price per unit</p>
+              <p className="text-2xl font-bold text-[#f97316] mb-4">₦{unitPrice.toLocaleString()}</p>
+
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
+              <input
+                type="number"
+                value={quantity}
+                onChange={(e) => {
+                  let val = parseInt(e.target.value) || 1;
+                  if (val < 1) val = 1;
+                  if (maxQty && val > maxQty) val = maxQty;
+                  setQuantity(val);
+                }}
+                min={1}
+                max={maxQty}
+                className="input-field mb-4"
+              />
+
+              <div className="border-t border-gray-200 pt-4 mb-4">
+                <div className="flex justify-between text-sm text-gray-600 mb-1">
+                  <span>Total</span>
+                  <span className="text-xl font-bold text-gray-800">₦{totalPrice.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleBuy}
+                disabled={buying}
+                className="btn-primary w-full disabled:opacity-50"
+              >
+                {buying ? 'Processing...' : 'Purchase Now'}
+              </button>
+
+              {msg && (
+                <div className="mt-4 p-3 rounded-lg bg-red-100 text-red-800 text-sm font-semibold">
+                  {msg}
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}

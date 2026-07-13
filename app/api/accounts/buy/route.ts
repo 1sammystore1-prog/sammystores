@@ -10,7 +10,9 @@ function extractProducts(data: any): any[] {
   if (Array.isArray(data)) return data;
   if (data && typeof data === 'object') {
     if (Array.isArray(data.categories)) {
-      return data.categories.flatMap((c: any) => Array.isArray(c.products) ? c.products : []);
+      return data.categories.flatMap((c: any) =>
+        Array.isArray(c.products) ? c.products.map((p: any) => ({ ...p, category: c.name })) : []
+      );
     }
     if (Array.isArray(data.products)) return data.products;
     if (data.product && typeof data.product === 'object') return [data.product];
@@ -34,9 +36,6 @@ export async function POST(request: Request) {
   if (user.suspended) return NextResponse.json({ success: false, error: 'Your account is suspended. Contact support.' }, { status: 403 });
 
   try {
-    // Look up the product's real price from the provider ourselves - never
-    // trust a client-supplied price, which would let anyone pay whatever
-    // amount they choose for an account.
     const productData = await buyAccountsRequest('getProducts');
     const products = extractProducts(productData);
     const product = products.find((p: any) => String(p.id) === String(productId));
@@ -54,8 +53,6 @@ export async function POST(request: Request) {
     const unitPrice = computeMarkup(baseUnitPrice, markups.accounts);
     const cost = unitPrice * qty;
 
-    // Atomic check-and-deduct to close the same double-spend race the other
-    // purchase routes had.
     const debited = await User.findOneAndUpdate(
       { _id: userId, walletBalance: { $gte: cost } },
       { $inc: { walletBalance: -cost } },
@@ -73,22 +70,31 @@ export async function POST(request: Request) {
         coupon: coupon || ''
       });
 
-      await Transaction.create({
+      const txn = await Transaction.create({
         userId,
         type: 'account_purchase',
-        description: `Bought account ID ${productId}`,
+        description: `Bought ${qty} x ${product.name || product.title || `account ID ${productId}`}`,
         amount: cost,
-        status: 'success'
+        status: 'success',
+        metadata: {
+          productId,
+          productName: product.name || product.title || null,
+          category: product.category || null,
+          quantity: qty,
+          accountData: data,
+          instructions: product.instructions || null,
+          video: product.video || null,
+        }
       });
 
       return NextResponse.json({
         success: true,
         message: 'Purchase successful!',
         accountData: data,
-        newBalance: debited.walletBalance
+        newBalance: debited.walletBalance,
+        orderId: String(txn._id)
       });
     } catch (providerError) {
-      // Refund since the provider purchase failed after we'd already debited.
       await User.findByIdAndUpdate(userId, { $inc: { walletBalance: cost } });
       return NextResponse.json({ success: false, error: 'Purchase failed' }, { status: 400 });
     }

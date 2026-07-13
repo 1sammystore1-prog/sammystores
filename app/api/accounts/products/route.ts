@@ -1,20 +1,29 @@
 import { NextResponse } from 'next/server';
 import { getMarkups, computeMarkup } from '@/lib/pricing';
 
+function pickInstructions(obj: any): string | null {
+  if (!obj) return null;
+  return obj.instructions || obj.login_instructions || obj.guide || obj.description || obj.note || null;
+}
+function pickVideo(obj: any): string | null {
+  if (!obj) return null;
+  return obj.video || obj.video_url || obj.tutorial_url || obj.tutorial_video || obj.youtube_url || null;
+}
+
 export async function GET() {
   const apiKey = process.env.YOUR_DANOTP_API_KEY;
-  
+
   if (!apiKey) {
-    return NextResponse.json({ 
-      success: false, 
+    return NextResponse.json({
+      success: false,
       error: 'API key not configured',
-      products: [] 
+      products: []
     }, { status: 500 });
   }
 
   try {
     const url = `https://www.danotp.com.ng/stubs/buy-accounts.php?action=getProducts&api_key=${apiKey}`;
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
@@ -22,10 +31,10 @@ export async function GET() {
     });
 
     const text = await response.text();
-    
+
     if (!response.ok) {
-      return NextResponse.json({ 
-        success: false, 
+      return NextResponse.json({
+        success: false,
         error: `HTTP ${response.status}`,
         rawResponse: text.substring(0, 200)
       }, { status: response.status });
@@ -35,39 +44,45 @@ export async function GET() {
     try {
       data = JSON.parse(text);
     } catch {
-      return NextResponse.json({ 
-        success: false, 
+      return NextResponse.json({
+        success: false,
         error: 'Invalid JSON response',
         rawResponse: text.substring(0, 300)
       }, { status: 500 });
     }
 
-    // Extract products from categories structure
-    let products = [];
-    
+    let products: any[] = [];
+
     if (Array.isArray(data)) {
       products = data;
     } else if (data && typeof data === 'object') {
-      // Check if products are in categories
       if (Array.isArray(data.categories)) {
         data.categories.forEach((category: any) => {
           if (Array.isArray(category.products)) {
             category.products.forEach((product: any) => {
               products.push({
                 ...product,
-                category: category.name
+                category: category.name,
+                instructions: pickInstructions(product) || pickInstructions(category),
+                video: pickVideo(product) || pickVideo(category),
               });
             });
           }
         });
       }
-      // Also check direct products array
       else if (Array.isArray(data.products)) {
-        products = data.products;
+        products = data.products.map((p: any) => ({
+          ...p,
+          instructions: pickInstructions(p),
+          video: pickVideo(p),
+        }));
       }
-      // Check single product object
       else if (data.product && typeof data.product === 'object') {
-        products = [data.product];
+        products = [{
+          ...data.product,
+          instructions: pickInstructions(data.product),
+          video: pickVideo(data.product),
+        }];
       }
     }
 
@@ -85,10 +100,10 @@ export async function GET() {
     });
 
   } catch (error: any) {
-    return NextResponse.json({ 
-      success: false, 
+    return NextResponse.json({
+      success: false,
       error: error.message || 'Network error',
-      products: [] 
+      products: []
     }, { status: 500 });
   }
 }
