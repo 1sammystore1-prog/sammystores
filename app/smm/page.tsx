@@ -3,12 +3,15 @@ import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
 
+const PRESET_TIERS = [100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
+
 export default function SmmPage() {
   const [services, setServices] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedService, setSelectedService] = useState('');
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [customQuantity, setCustomQuantity] = useState('');
   const [link, setLink] = useState('');
-  const [quantity, setQuantity] = useState('1000');
   const [loading, setLoading] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [msg, setMsg] = useState('');
@@ -44,10 +47,40 @@ export default function SmmPage() {
     return services.filter((s) => (s.category || 'Other') === selectedCategory);
   }, [services, selectedCategory]);
 
+  const selectedService = useMemo(
+    () => services.find((s: any) => String(s.service) === String(selectedServiceId)) || null,
+    [services, selectedServiceId]
+  );
+
+  const quantityOptions = useMemo(() => {
+    if (!selectedService) return [];
+    const min = parseInt(selectedService.min) || 1;
+    const max = parseInt(selectedService.max) || Infinity;
+    const options = PRESET_TIERS.filter((q) => q >= min && q <= max);
+    if (!options.includes(min)) options.unshift(min);
+    if (max !== Infinity && !options.includes(max)) options.push(max);
+    return Array.from(new Set(options)).sort((a, b) => a - b);
+  }, [selectedService]);
+
+  const priceFor = (qty: number) => {
+    if (!selectedService) return 0;
+    return (selectedService.rate * qty) / 1000;
+  };
+
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
-    setSelectedService('');
+    setSelectedServiceId('');
+    setQuantity('');
+    setCustomQuantity('');
   };
+
+  const handleServiceChange = (serviceId: string) => {
+    setSelectedServiceId(serviceId);
+    setQuantity('');
+    setCustomQuantity('');
+  };
+
+  const effectiveQuantity = quantity === 'custom' ? parseInt(customQuantity) || 0 : parseInt(quantity) || 0;
 
   const handleOrder = async () => {
     setPurchasing(true);
@@ -70,9 +103,9 @@ export default function SmmPage() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          service: selectedService,
+          service: selectedServiceId,
           link,
-          quantity: parseInt(quantity)
+          quantity: effectiveQuantity
         })
       });
       const data = await res.json();
@@ -125,8 +158,8 @@ export default function SmmPage() {
                 <div className="mb-6">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Select Service</label>
                   <select
-                    value={selectedService}
-                    onChange={(e) => setSelectedService(e.target.value)}
+                    value={selectedServiceId}
+                    onChange={(e) => handleServiceChange(e.target.value)}
                     className="input-field"
                     disabled={!selectedCategory}
                   >
@@ -139,6 +172,47 @@ export default function SmmPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity & Price</label>
+                  <select
+                    value={quantity}
+                    onChange={(e) => { setQuantity(e.target.value); setCustomQuantity(''); }}
+                    className="input-field"
+                    disabled={!selectedService}
+                  >
+                    <option value="">
+                      {selectedService ? 'Choose a quantity...' : 'Select a service first'}
+                    </option>
+                    {quantityOptions.map((qty) => (
+                      <option key={qty} value={qty}>
+                        {qty.toLocaleString()} - ₦{priceFor(qty).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </option>
+                    ))}
+                    {selectedService && <option value="custom">Custom amount...</option>}
+                  </select>
+
+                  {quantity === 'custom' && selectedService && (
+                    <div className="mt-3">
+                      <input
+                        type="number"
+                        value={customQuantity}
+                        onChange={(e) => setCustomQuantity(e.target.value)}
+                        placeholder={`Enter quantity (min ${selectedService.min || 1}, max ${selectedService.max || '∞'})`}
+                        className="input-field"
+                        min={selectedService.min || 1}
+                        max={selectedService.max || undefined}
+                      />
+                      {customQuantity && (
+                        <p className="text-sm text-gray-600 mt-2">
+                          Price: <span className="font-bold text-[#f97316]">
+                            ₦{priceFor(parseInt(customQuantity) || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -154,21 +228,9 @@ export default function SmmPage() {
               />
             </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
-              <input
-                type="number"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                className="input-field"
-                min="100"
-                step="100"
-              />
-            </div>
-
             <button
               onClick={handleOrder}
-              disabled={purchasing || !selectedService || !link}
+              disabled={purchasing || !selectedServiceId || !link || !effectiveQuantity}
               className="btn-primary w-full disabled:opacity-50"
             >
               {purchasing ? 'Processing...' : 'Place Order'}
@@ -192,11 +254,11 @@ export default function SmmPage() {
                   </div>
                   <div>
                     <span className="text-gray-600">Service: </span>
-                    <span className="font-semibold">{selectedService}</span>
+                    <span className="font-semibold">{selectedService?.name}</span>
                   </div>
                   <div>
                     <span className="text-gray-600">Quantity: </span>
-                    <span className="font-semibold">{quantity}</span>
+                    <span className="font-semibold">{effectiveQuantity.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
