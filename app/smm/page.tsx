@@ -23,6 +23,25 @@ export default function SmmPage() {
     fetchServices();
   }, []);
 
+  // Pre-select category/service if arriving from the catalog page or search
+  // (e.g. /smm?category=Instagram or /smm?service=1234)
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    const serviceParam = searchParams.get('service');
+
+    if (serviceParam && services.length > 0) {
+      const match = services.find((s: any) => String(s.service) === String(serviceParam));
+      if (match) {
+        setSelectedCategory(match.category || 'Other');
+        setSelectedServiceId(String(serviceParam));
+        return;
+      }
+    }
+    if (categoryParam && !selectedCategory) {
+      setSelectedCategory(categoryParam);
+    }
+  }, [searchParams, services]);
+
   const fetchServices = async () => {
     setLoading(true);
     try {
