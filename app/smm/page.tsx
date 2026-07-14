@@ -1,12 +1,14 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 
 const PRESET_TIERS = [100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
 
-export default function SmmPage() {
+function SmmInner() {
+  const searchParams = useSearchParams();
   const [services, setServices] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedServiceId, setSelectedServiceId] = useState('');
@@ -194,9 +196,6 @@ export default function SmmPage() {
           <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-[#b3001f] mb-4 transition-colors">
             ← Back to Dashboard
           </Link>
-          <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-[#b3001f] mb-4 transition-colors">
-            ← Back to Dashboard
-          </Link>
           <div className="mb-8">
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">SMM Panel</h1>
             <p className="text-gray-600">Boost your social media presence</p>
@@ -355,5 +354,13 @@ export default function SmmPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function SmmPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <SmmInner />
+    </Suspense>
   );
 }
