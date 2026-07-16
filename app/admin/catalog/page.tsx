@@ -161,7 +161,7 @@ export default function AdminCatalogPage() {
         </Link>
 
         <h1 className="text-3xl font-bold text-gray-800 mb-2">My Catalog (Admin)</h1>
-        <p className="text-gray-600 mb-8">Create your own account listings and stock them with credentials, separate from the benotp catalog.</p>
+        <p className="text-gray-600 mb-8">Create your own account listings and stock them with credentials - sold directly from your own inventory.</p>
 
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold">

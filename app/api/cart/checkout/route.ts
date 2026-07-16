@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { buyAccountsRequest } from '@/lib/buyaccounts';
 import { getAllListings as getAccszoneListings, purchaseListing as purchaseAccszoneListing } from '@/lib/accszone';
 import { japRequest } from '@/lib/jap';
 import { getUserId } from '@/lib/auth';
@@ -8,21 +7,6 @@ import User from '@/models/User';
 import Transaction from '@/models/Transaction';
 import Cart from '@/models/Cart';
 import { getMarkups, computeMarkup, toNgn } from '@/lib/pricing';
-import { cleanAccountData } from '@/lib/accountData';
-
-function extractProducts(data: any): any[] {
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === 'object') {
-    if (Array.isArray(data.categories)) {
-      return data.categories.flatMap((c: any) =>
-        Array.isArray(c.products) ? c.products.map((p: any) => ({ ...p, category: c.name })) : []
-      );
-    }
-    if (Array.isArray(data.products)) return data.products;
-    if (data.product && typeof data.product === 'object') return [data.product];
-  }
-  return [];
-}
 
 type CheckoutResult = { productId: string; name: string; success: boolean; error?: string };
 
@@ -50,88 +34,14 @@ export async function POST(request: Request) {
   const remainingItems: typeof cart.items = [];
 
   if (accountItems.length > 0) {
-    const benotpItems = accountItems.filter((i) => String(i.productId).startsWith('benotp_'));
     const accszoneItems = accountItems.filter((i) => String(i.productId).startsWith('accszone_'));
     const unknownItems = accountItems.filter(
-      (i) => !String(i.productId).startsWith('benotp_') && !String(i.productId).startsWith('accszone_')
+      (i) => !String(i.productId).startsWith('accszone_')
     );
 
     for (const item of unknownItems) {
       results.push({ productId: item.productId, name: item.name, success: false, error: 'Unknown product source' });
       remainingItems.push(item);
-    }
-
-    if (benotpItems.length > 0) {
-      let liveProducts: any[] = [];
-      try {
-        const productData = await buyAccountsRequest('getProducts');
-        liveProducts = extractProducts(productData);
-      } catch {}
-
-      for (const item of benotpItems) {
-        const rawId = String(item.productId).replace(/^benotp_/, '');
-        const liveProduct = liveProducts.find((p: any) => String(p.id) === String(rawId));
-
-        if (!liveProduct) {
-          results.push({ productId: item.productId, name: item.name, success: false, error: 'No longer available' });
-          remainingItems.push(item);
-          continue;
-        }
-
-        const baseUnitPrice = parseFloat(String(liveProduct.price));
-        if (isNaN(baseUnitPrice) || baseUnitPrice <= 0) {
-          results.push({ productId: item.productId, name: item.name, success: false, error: 'Invalid product price' });
-          remainingItems.push(item);
-          continue;
-        }
-
-        const unitPrice = computeMarkup(baseUnitPrice, markups.accounts);
-        const cost = unitPrice * item.quantity;
-
-        const debited = await User.findOneAndUpdate(
-          { _id: userId, walletBalance: { $gte: cost } },
-          { $inc: { walletBalance: -cost } },
-          { new: true }
-        );
-
-        if (!debited) {
-          results.push({ productId: item.productId, name: item.name, success: false, error: 'Insufficient funds' });
-          remainingItems.push(item);
-          continue;
-        }
-
-        let data;
-        try {
-          data = await buyAccountsRequest('buyProduct', { id: rawId, amount: item.quantity, coupon: '' });
-        } catch {
-          await User.findByIdAndUpdate(userId, { $inc: { walletBalance: cost } });
-          results.push({ productId: item.productId, name: item.name, success: false, error: 'Purchase failed, refunded' });
-          remainingItems.push(item);
-          continue;
-        }
-
-        try {
-          await Transaction.create({
-            userId,
-            type: 'account_purchase',
-            description: `Bought ${item.quantity} x ${item.name}`,
-            amount: cost,
-            status: 'success',
-            metadata: {
-              productId: item.productId,
-              source: 'benotp',
-              productName: item.name,
-              category: item.category || null,
-              quantity: item.quantity,
-              accountData: cleanAccountData(data),
-            },
-          });
-        } catch (txError) {
-          console.error('Failed to record account Transaction after successful purchase:', txError);
-        }
-
-        results.push({ productId: item.productId, name: item.name, success: true });
-      }
     }
 
     if (accszoneItems.length > 0) {

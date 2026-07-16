@@ -15,8 +15,8 @@ const CatalogProductSchema: Schema<ICatalogProduct> = new Schema(
   {
     name: { type: String, required: true, trim: true },
     category: { type: String, required: true, trim: true },
-    // Admin sets the final selling price directly - unlike the benotp
-    // catalog, there's no separate markup layer applied on top of this.
+    // Admin sets the final selling price directly - there's no separate
+    // markup layer applied on top of this.
     price: { type: Number, required: true, min: 0 },
     description: { type: String, default: '' },
     instructions: { type: String, default: '' },

@@ -47,8 +47,8 @@ export interface AccszoneListing {
 }
 
 // Walks every page of /listings (max 100 per page per their docs) to
-// return the full catalog in one call, mirroring how the benotp
-// integration returns its whole product list at once.
+// return the full catalog in one call, so callers don't need to deal
+// with pagination themselves.
 export async function getAllListings(): Promise<AccszoneListing[]> {
   const all: AccszoneListing[] = [];
   let page = 1;

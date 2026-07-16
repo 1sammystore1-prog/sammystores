@@ -1,21 +1,7 @@
 import { NextResponse } from 'next/server';
-import { buyAccountsRequest } from '@/lib/buyaccounts';
+import { getAllListings } from '@/lib/accszone';
 import { japRequest } from '@/lib/jap';
 import { getMarkups, computeMarkup, toNgn } from '@/lib/pricing';
-
-function extractProducts(data: any): any[] {
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === 'object') {
-    if (Array.isArray(data.categories)) {
-      return data.categories.flatMap((c: any) =>
-        Array.isArray(c.products) ? c.products.map((p: any) => ({ ...p, category: c.name })) : []
-      );
-    }
-    if (Array.isArray(data.products)) return data.products;
-    if (data.product && typeof data.product === 'object') return [data.product];
-  }
-  return [];
-}
 
 const MAX_RESULTS_PER_TYPE = 15;
 
@@ -38,21 +24,20 @@ export async function GET(request: Request) {
   }> = [];
 
   try {
-    const productData = await buyAccountsRequest('getProducts');
-    const products = extractProducts(productData);
+    const listings = await getAllListings();
 
-    for (const p of products) {
-      const name = p.name || p.title || '';
-      const category = p.category || '';
+    for (const listing of listings) {
+      const name = listing.title || '';
+      const category = listing.subcategory?.title || listing.category?.title || '';
       if (name.toLowerCase().includes(q) || category.toLowerCase().includes(q)) {
-        const baseUnitPrice = parseFloat(String(p.price));
+        const baseUnitPriceUsd = parseFloat(String(listing.price));
         results.push({
           type: 'account',
-          id: String(p.id),
+          id: `accszone_${listing.id}`,
           name,
           category,
-          price: isNaN(baseUnitPrice) ? 0 : computeMarkup(baseUnitPrice, markups.accounts),
-          href: `/accounts/${p.id}`,
+          price: isNaN(baseUnitPriceUsd) ? 0 : computeMarkup(toNgn(baseUnitPriceUsd), markups.accounts),
+          href: `/accounts/accszone_${listing.id}`,
         });
         if (results.filter((r) => r.type === 'account').length >= MAX_RESULTS_PER_TYPE) break;
       }
