@@ -32,6 +32,14 @@ export default function AdminCatalogPage() {
   const [stockText, setStockText] = useState('');
   const [addingStock, setAddingStock] = useState(false);
 
+  const [editProductId, setEditProductId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editInstructions, setEditInstructions] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const authHeaders = () => {
     const token = localStorage.getItem('token');
     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -100,6 +108,49 @@ export default function AdminCatalogPage() {
     } catch {
       setError('Failed to update product');
     }
+  };
+
+  const openEdit = (product: Product) => {
+    if (editProductId === product._id) {
+      setEditProductId(null);
+      return;
+    }
+    setStockProductId(null);
+    setEditProductId(product._id);
+    setEditName(product.name);
+    setEditCategory(product.category);
+    setEditPrice(String(product.price));
+    setEditDescription(product.description || '');
+    setEditInstructions(product.instructions || '');
+  };
+
+  const handleEditSave = async (e: React.FormEvent, productId: string) => {
+    e.preventDefault();
+    setSavingEdit(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/admin/catalog/products/${productId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          name: editName,
+          category: editCategory,
+          price: editPrice,
+          description: editDescription,
+          instructions: editInstructions,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditProductId(null);
+        fetchProducts();
+      } else {
+        setError(data.error || 'Failed to update product');
+      }
+    } catch (err: any) {
+      setError('Network error: ' + err.message);
+    }
+    setSavingEdit(false);
   };
 
   const handleDelete = async (product: Product) => {
@@ -243,7 +294,16 @@ export default function AdminCatalogPage() {
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     <button
-                      onClick={() => setStockProductId(stockProductId === product._id ? null : product._id)}
+                      onClick={() => openEdit(product)}
+                      className="btn-secondary text-sm py-2 px-4"
+                    >
+                      {editProductId === product._id ? 'Cancel' : 'Edit'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditProductId(null);
+                        setStockProductId(stockProductId === product._id ? null : product._id);
+                      }}
                       className="btn-secondary text-sm py-2 px-4"
                     >
                       {stockProductId === product._id ? 'Cancel' : 'Add Stock'}
@@ -262,6 +322,53 @@ export default function AdminCatalogPage() {
                     </button>
                   </div>
                 </div>
+
+                {editProductId === product._id && (
+                  <form onSubmit={(e) => handleEditSave(e, product._id)} className="mt-4 border-t border-gray-100 pt-4 grid md:grid-cols-2 gap-4">
+                    <input
+                      type="text"
+                      placeholder="Product name"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="input-field"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="Category"
+                      value={editCategory}
+                      onChange={(e) => setEditCategory(e.target.value)}
+                      className="input-field"
+                      required
+                    />
+                    <input
+                      type="number"
+                      placeholder="Price (₦)"
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(e.target.value)}
+                      className="input-field"
+                      min="1"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="Short description (optional)"
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      className="input-field"
+                    />
+                    <textarea
+                      placeholder="Buyer instructions (optional) - shown after purchase"
+                      value={editInstructions}
+                      onChange={(e) => setEditInstructions(e.target.value)}
+                      className="input-field md:col-span-2"
+                      rows={2}
+                    />
+                    <button type="submit" disabled={savingEdit} className="btn-primary md:col-span-2 disabled:opacity-50">
+                      {savingEdit ? 'Saving...' : 'Update Product'}
+                    </button>
+                  </form>
+                )}
 
                 {stockProductId === product._id && (
                   <form onSubmit={handleAddStock} className="mt-4 border-t border-gray-100 pt-4">
