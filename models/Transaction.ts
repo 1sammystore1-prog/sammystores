@@ -46,7 +46,10 @@ const transactionSchema = new Schema<ITransaction>({
   status: {
     type: String,
     required: true,
-    enum: ['pending', 'success', 'failed'],
+    // 'refunded' was missing here even though app/api/numbers/tiger/cancel
+    // sets it directly, which made every cancel-and-refund throw a
+    // ValidationError on save instead of completing.
+    enum: ['pending', 'success', 'failed', 'refunded'],
     default: 'pending'
   },
   metadata: {
