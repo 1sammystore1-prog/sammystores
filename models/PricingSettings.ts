@@ -11,6 +11,12 @@ export interface IPricingSettings extends Document {
     smm: number;
     accounts: number;
   };
+  benotpPrices: {
+    usa1: number;
+    usa2: number;
+    all1: number;
+    all2: number;
+  };
 }
 
 const PricingSettingsSchema: Schema<IPricingSettings> = new Schema(
@@ -20,6 +26,17 @@ const PricingSettingsSchema: Schema<IPricingSettings> = new Schema(
       numbers: { type: Number, default: 20 },
       smm: { type: Number, default: 20 },
       accounts: { type: Number, default: 20 },
+    },
+    // Flat admin-set NGN price per BenOTP pool, charged per number - unlike
+    // the percentage markups above, since BenOTP doesn't expose reliable
+    // live per-service pricing across all 4 pools (only "All Countries 1"
+    // documents a getPrice endpoint), a flat price is the only option that
+    // doesn't require guessing at undocumented response shapes.
+    benotpPrices: {
+      usa1: { type: Number, default: 500 },
+      usa2: { type: Number, default: 500 },
+      all1: { type: Number, default: 300 },
+      all2: { type: Number, default: 300 },
     },
   },
   { timestamps: true }

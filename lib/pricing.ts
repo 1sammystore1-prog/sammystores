@@ -48,6 +48,36 @@ export function invalidateMarkupCache() {
   cache = null;
 }
 
+const DEFAULT_BENOTP_PRICES: Record<string, number> = {
+  usa1: 500,
+  usa2: 500,
+  all1: 300,
+  all2: 300,
+};
+
+let benotpCache: { prices: Record<string, number>; expiresAt: number } | null = null;
+
+export async function getBenotpPrices(): Promise<Record<string, number>> {
+  if (benotpCache && benotpCache.expiresAt > Date.now()) return benotpCache.prices;
+
+  await dbConnect();
+  const doc = await PricingSettings.findOne({ key: 'pricing' });
+
+  const prices: Record<string, number> = {
+    usa1: doc?.benotpPrices?.usa1 ?? DEFAULT_BENOTP_PRICES.usa1,
+    usa2: doc?.benotpPrices?.usa2 ?? DEFAULT_BENOTP_PRICES.usa2,
+    all1: doc?.benotpPrices?.all1 ?? DEFAULT_BENOTP_PRICES.all1,
+    all2: doc?.benotpPrices?.all2 ?? DEFAULT_BENOTP_PRICES.all2,
+  };
+
+  benotpCache = { prices, expiresAt: Date.now() + CACHE_TTL_MS };
+  return prices;
+}
+
+export function invalidateBenotpPriceCache() {
+  benotpCache = null;
+}
+
 // Applies a percentage markup on top of a raw provider cost. A negative
 // percent (discount) is allowed down to -99, so a price can never be
 // dropped to zero/negative by a fat-fingered admin entry.

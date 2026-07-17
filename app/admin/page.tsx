@@ -9,6 +9,13 @@ const CATEGORY_LABELS: Record<string, string> = {
   accounts: 'Buy Accounts',
 };
 
+const BENOTP_POOL_LABELS: { key: string; label: string }[] = [
+  { key: 'usa1', label: 'BenOTP - USA Server 1' },
+  { key: 'usa2', label: 'BenOTP - USA Server 2' },
+  { key: 'all1', label: 'BenOTP - All Countries 1' },
+  { key: 'all2', label: 'BenOTP - All Countries 2' },
+];
+
 export default function AdminPage() {
   const router = useRouter();
   const [stats, setStats] = useState<any>({ totalUsers: 0, totalWalletBalance: 0, totalTransactions: 0 });
@@ -16,6 +23,8 @@ export default function AdminPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [markups, setMarkups] = useState<Record<string, number>>({ numbers: 0, smm: 0, accounts: 0 });
   const [markupInputs, setMarkupInputs] = useState<Record<string, string>>({ numbers: '', smm: '', accounts: '' });
+  const [benotpPrices, setBenotpPrices] = useState<Record<string, number>>({ usa1: 0, usa2: 0, all1: 0, all2: 0 });
+  const [benotpPriceInputs, setBenotpPriceInputs] = useState<Record<string, string>>({ usa1: '', usa2: '', all1: '', all2: '' });
   const [pricingSaving, setPricingSaving] = useState(false);
   const [pricingMsg, setPricingMsg] = useState('');
   const [pricingMsgType, setPricingMsgType] = useState('');
@@ -92,6 +101,15 @@ export default function AdminPage() {
           smm: String(data.markups.smm),
           accounts: String(data.markups.accounts),
         });
+        if (data.benotpPrices) {
+          setBenotpPrices(data.benotpPrices);
+          setBenotpPriceInputs({
+            usa1: String(data.benotpPrices.usa1),
+            usa2: String(data.benotpPrices.usa2),
+            all1: String(data.benotpPrices.all1),
+            all2: String(data.benotpPrices.all2),
+          });
+        }
       }
     } catch (error) {
       console.error('Pricing fetch error:', error);
@@ -105,11 +123,12 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/pricing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify(markupInputs)
+        body: JSON.stringify({ ...markupInputs, benotpPrices: benotpPriceInputs })
       });
       const data = await res.json();
       if (data.success) {
         setMarkups(data.markups);
+        if (data.benotpPrices) setBenotpPrices(data.benotpPrices);
         setPricingMsgType('success');
         setPricingMsg('Pricing updated successfully!');
       } else {
@@ -491,6 +510,33 @@ export default function AdminPage() {
                 </div>
                 <p className="text-gray-500 text-xs mt-2 font-mono">
                   Currently live: {markups[category]}% markup
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <h3 className="text-lg font-bold text-gray-800 font-mono mb-2">{`> BENOTP_NUMBERS (flat price per number)`}</h3>
+          <p className="text-gray-500 text-sm mb-4">
+            BenOTP doesn&apos;t expose live per-service pricing across all 4 pools, so these are charged as a flat
+            NGN price per number instead of a percentage markup.
+          </p>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            {BENOTP_POOL_LABELS.map((pool) => (
+              <div key={pool.key} className="bg-white border border-gray-200 rounded-xl p-5">
+                <label className="block text-[#f97316] font-mono text-sm mb-2">{pool.label}</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 font-mono">₦</span>
+                  <input
+                    type="number"
+                    value={benotpPriceInputs[pool.key]}
+                    onChange={(e) => setBenotpPriceInputs({ ...benotpPriceInputs, [pool.key]: e.target.value })}
+                    step="1"
+                    min="1"
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 focus:border-[#f97316] focus:outline-none"
+                  />
+                </div>
+                <p className="text-gray-500 text-xs mt-2 font-mono">
+                  Currently live: ₦{benotpPrices[pool.key]}
                 </p>
               </div>
             ))}
