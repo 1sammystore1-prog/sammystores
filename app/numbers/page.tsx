@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import BenotpServerGrid from '@/components/BenotpServerGrid';
+import type { BenotpPool } from '@/lib/benotp';
 
 interface Country {
   id: string;
@@ -27,6 +29,7 @@ interface Order {
 
 export default function VirtualNumbersPage() {
   const router = useRouter();
+  const [provider, setProvider] = useState<'tigersms' | 'benotp'>('tigersms');
   const [countries, setCountries] = useState<Country[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedCountry, setSelectedCountry] = useState('');
@@ -43,12 +46,34 @@ export default function VirtualNumbersPage() {
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const smsPollActiveRef = useRef(true);
 
+  // BenOTP is a separate, self-contained flow with its own state - it
+  // doesn't share countries/services with TigerSMS since BenOTP's four
+  // pools don't have a live per-country service catalog wired up yet
+  // (only "All Countries 1" documents a getPrice/service-list endpoint).
+  // Service is entered directly as a code (e.g. "wa" for WhatsApp) per
+  // BenOTP's own API convention.
+  const [benotpPool, setBenotpPool] = useState<BenotpPool>('usa1');
+  const [benotpService, setBenotpService] = useState('');
+  const [benotpCountry, setBenotpCountry] = useState('');
+  const [benotpAreaCode, setBenotpAreaCode] = useState('');
+  const [benotpCarrier, setBenotpCarrier] = useState('');
+  const [benotpBuying, setBenotpBuying] = useState(false);
+  const [benotpCancelling, setBenotpCancelling] = useState(false);
+  const [benotpError, setBenotpError] = useState('');
+  const [benotpSuccess, setBenotpSuccess] = useState('');
+  const [benotpOrder, setBenotpOrder] = useState<Order | null>(null);
+  const benotpPollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const benotpPollActiveRef = useRef(true);
+
   // Stop polling if the component unmounts (e.g. user navigates away)
   useEffect(() => {
     smsPollActiveRef.current = true;
+    benotpPollActiveRef.current = true;
     return () => {
       smsPollActiveRef.current = false;
+      benotpPollActiveRef.current = false;
       if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+      if (benotpPollTimeoutRef.current) clearTimeout(benotpPollTimeoutRef.current);
     };
   }, []);
 
@@ -248,6 +273,127 @@ export default function VirtualNumbersPage() {
     }
   };
 
+  const handleBenotpBuy = async () => {
+    if (!benotpService.trim()) {
+      setBenotpError('Please enter a service code');
+      return;
+    }
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setBenotpError('Please login first');
+      router.push('/login');
+      return;
+    }
+
+    try {
+      setBenotpBuying(true);
+      setBenotpError('');
+      setBenotpSuccess('');
+
+      const res = await fetch('/api/numbers/benotp/buy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          pool: benotpPool,
+          service: benotpService.trim(),
+          country: benotpCountry.trim() || undefined,
+          areaCode: benotpAreaCode.trim() || undefined,
+          carrier: benotpCarrier.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setBenotpOrder({
+          id: data.orderId,
+          phone: data.phoneNumber,
+          service: benotpService.trim(),
+          price: data.price,
+          sms: null,
+        });
+        setWalletBalance(data.newBalance);
+        setBenotpSuccess('Number acquired! Waiting for SMS...');
+        benotpCheckSmsStatus(data.orderId);
+      } else {
+        setBenotpError(data.error || 'Failed to buy number');
+      }
+    } catch (err: any) {
+      setBenotpError('Network error: ' + err.message);
+    } finally {
+      setBenotpBuying(false);
+    }
+  };
+
+  const handleBenotpCancel = async () => {
+    if (!benotpOrder) return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setBenotpError('Please login first');
+      router.push('/login');
+      return;
+    }
+
+    try {
+      setBenotpCancelling(true);
+      setBenotpError('');
+
+      const res = await fetch('/api/numbers/benotp/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ activationId: benotpOrder.id }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        if (benotpPollTimeoutRef.current) clearTimeout(benotpPollTimeoutRef.current);
+        benotpPollActiveRef.current = false;
+        setWalletBalance((prev) => prev + (data.refunded || 0));
+        setBenotpSuccess('Number cancelled and refunded to your wallet.');
+        setBenotpOrder(null);
+      } else {
+        setBenotpError(data.error || 'Failed to cancel number');
+      }
+    } catch (err: any) {
+      setBenotpError('Network error: ' + err.message);
+    } finally {
+      setBenotpCancelling(false);
+    }
+  };
+
+  const benotpCheckSmsStatus = async (activationId: string, attempt: number = 1) => {
+    const MAX_ATTEMPTS = 200;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/numbers/benotp/status?id=${activationId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+
+      if (!benotpPollActiveRef.current) return;
+
+      if (data.success) {
+        if (data.status === 'completed' && data.sms) {
+          setBenotpOrder((prev) => (prev ? { ...prev, sms: data.sms } : null));
+          setBenotpSuccess('SMS received!');
+        } else if (data.status === 'pending') {
+          if (attempt < MAX_ATTEMPTS) {
+            benotpPollTimeoutRef.current = setTimeout(
+              () => benotpCheckSmsStatus(activationId, attempt + 1),
+              3000
+            );
+          } else {
+            setBenotpError('Timed out waiting for SMS. You can try requesting a new number.');
+          }
+        } else if (data.status === 'cancelled') {
+          setBenotpError('Activation was cancelled or number was released');
+        }
+      }
+    } catch (err: any) {
+      console.error('BenOTP SMS check error:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
@@ -276,6 +422,32 @@ export default function VirtualNumbersPage() {
           <p className="text-gray-400">Get instant SMS verification numbers worldwide</p>
         </div>
 
+        {/* Provider Tabs */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setProvider('tigersms')}
+            className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-colors ${
+              provider === 'tigersms'
+                ? 'bg-[#f97316] text-white'
+                : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'
+            }`}
+          >
+            TigerSMS
+          </button>
+          <button
+            onClick={() => setProvider('benotp')}
+            className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-colors ${
+              provider === 'benotp'
+                ? 'bg-[#f97316] text-white'
+                : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'
+            }`}
+          >
+            BenOTP
+          </button>
+        </div>
+
+        {provider === 'tigersms' && (
+        <>
         {/* Error Message */}
         {error && (
           <div className="bg-red-900 border border-red-700 text-red-100 p-4 rounded-lg mb-4 flex items-start gap-3">
@@ -452,6 +624,161 @@ export default function VirtualNumbersPage() {
               Get Another Number
             </button>
           </div>
+        )}
+        </>
+        )}
+
+        {provider === 'benotp' && (
+        <>
+        {benotpError && (
+          <div className="bg-red-900 border border-red-700 text-red-100 p-4 rounded-lg mb-4 flex items-start gap-3">
+            <span className="text-xl">⚠️</span>
+            <div>
+              <p className="font-semibold">Error</p>
+              <p className="text-sm mt-1">{benotpError}</p>
+            </div>
+          </div>
+        )}
+
+        {benotpSuccess && (
+          <div className="bg-green-900 border border-green-700 text-green-100 p-4 rounded-lg mb-4 flex items-start gap-3">
+            <span className="text-xl">✅</span>
+            <div>
+              <p className="font-semibold">Success</p>
+              <p className="text-sm mt-1">{benotpSuccess}</p>
+            </div>
+          </div>
+        )}
+
+        {!benotpOrder ? (
+          <div className="bg-gray-800 border border-gray-700 p-6 rounded-xl shadow-xl">
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-300 mb-2">1. Choose a Server</label>
+              <BenotpServerGrid selected={benotpPool} onSelect={setBenotpPool} />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-300 mb-2">
+                2. Service Code (e.g. wa for WhatsApp, tg for Telegram)
+              </label>
+              <input
+                type="text"
+                value={benotpService}
+                onChange={(e) => setBenotpService(e.target.value)}
+                placeholder="wa"
+                className="w-full p-3 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-[#f97316] outline-none transition"
+              />
+            </div>
+
+            {(benotpPool === 'all1' || benotpPool === 'all2') && (
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-300 mb-2">Country Code</label>
+                <input
+                  type="text"
+                  value={benotpCountry}
+                  onChange={(e) => setBenotpCountry(e.target.value)}
+                  placeholder="e.g. 0 for Russia, 1 for USA - per BenOTP's country list"
+                  className="w-full p-3 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-[#f97316] outline-none transition"
+                />
+              </div>
+            )}
+
+            {(benotpPool === 'usa1' || benotpPool === 'usa2') && (
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Carrier (optional)</label>
+                  <input
+                    type="text"
+                    value={benotpCarrier}
+                    onChange={(e) => setBenotpCarrier(e.target.value)}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-[#f97316] outline-none transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Area Code (optional)</label>
+                  <input
+                    type="text"
+                    value={benotpAreaCode}
+                    onChange={(e) => setBenotpAreaCode(e.target.value)}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-[#f97316] outline-none transition"
+                  />
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleBenotpBuy}
+              disabled={!benotpService.trim() || benotpBuying}
+              className="w-full bg-[#f97316] hover:bg-[#ea580c] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              {benotpBuying ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  Processing...
+                </>
+              ) : (
+                '📱 Get Number'
+              )}
+            </button>
+          </div>
+        ) : (
+          <div className="bg-gray-800 border border-gray-700 p-6 rounded-xl shadow-xl">
+            <h2 className="text-2xl font-bold text-white mb-4">📞 Your Number</h2>
+
+            <div className="bg-gray-700 p-4 rounded-lg mb-4">
+              <p className="text-gray-400 text-sm mb-1">Phone Number</p>
+              <p className="text-3xl font-mono font-bold text-[#f97316] break-all">{benotpOrder.phone}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="bg-gray-700 p-3 rounded-lg">
+                <p className="text-gray-400 text-xs mb-1">Service</p>
+                <p className="text-white font-semibold">{benotpOrder.service}</p>
+              </div>
+              <div className="bg-gray-700 p-3 rounded-lg">
+                <p className="text-gray-400 text-xs mb-1">Price</p>
+                <p className="text-white font-semibold">₦{benotpOrder.price.toFixed(2)}</p>
+              </div>
+            </div>
+
+            {benotpOrder.sms ? (
+              <div className="bg-green-900 border border-green-700 p-4 rounded-lg mb-4">
+                <p className="text-gray-300 text-sm mb-1">SMS Code</p>
+                <p className="text-2xl font-mono font-bold text-green-400">{benotpOrder.sms}</p>
+              </div>
+            ) : (
+              <div className="bg-blue-900 border border-blue-700 p-4 rounded-lg mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="animate-spin">⏳</span>
+                  <p className="text-blue-200">Waiting for SMS code...</p>
+                </div>
+              </div>
+            )}
+
+            {!benotpOrder.sms && (
+              <button
+                onClick={handleBenotpCancel}
+                disabled={benotpCancelling}
+                className="w-full bg-red-900 hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed border border-red-700 text-red-100 font-semibold py-2 px-4 rounded-lg transition-colors mb-3"
+              >
+                {benotpCancelling ? 'Cancelling...' : 'Cancel & Refund'}
+              </button>
+            )}
+
+            <button
+              onClick={() => {
+                if (benotpPollTimeoutRef.current) clearTimeout(benotpPollTimeoutRef.current);
+                setBenotpOrder(null);
+                setBenotpSuccess('');
+                setBenotpError('');
+              }}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+            >
+              Get Another Number
+            </button>
+          </div>
+        )}
+        </>
         )}
       </div>
     </div>
