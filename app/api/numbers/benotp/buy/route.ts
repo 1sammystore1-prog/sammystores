@@ -59,6 +59,9 @@ export async function POST(request: Request) {
   if (!pool || !VALID_POOLS.includes(pool) || !service) {
     return NextResponse.json({ error: 'Pool and service are required' }, { status: 400 });
   }
+  if ((pool === 'all1' || pool === 'all2') && !country) {
+    return NextResponse.json({ error: 'Country is required for this pool' }, { status: 400 });
+  }
 
   const user = await User.findById(userId);
   if (!user) {

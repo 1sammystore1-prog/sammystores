@@ -882,7 +882,11 @@ export default function VirtualNumbersPage() {
 
             <button
               onClick={handleBenotpBuy}
-              disabled={!benotpService.trim() || benotpBuying}
+              disabled={
+                !benotpService.trim() ||
+                benotpBuying ||
+                ((benotpPool === 'all1' || benotpPool === 'all2') && !benotpCountry.trim())
+              }
               className="w-full bg-[#f97316] hover:bg-[#ea580c] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
             >
               {benotpBuying ? (
