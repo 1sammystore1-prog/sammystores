@@ -198,7 +198,13 @@ export default function DashboardPage() {
               <h3 className="text-xl font-bold mb-2 text-gray-800">Buy Logs</h3>
               <p className="text-gray-500 text-sm">Verified logs &amp; digital accounts</p>
             </Link>
-          </div>
+          
+          <Link href="/support" className="card p-6 group">
+            <div className="text-4xl mb-4">🎫</div>
+            <h3 className="text-xl font-bold mb-2 text-gray-800">Support</h3>
+            <p className="text-gray-500 text-sm">Open a support ticket</p>
+          </Link>
+        </div>
 
           <div className="mb-8">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Recent Activity</h2>
