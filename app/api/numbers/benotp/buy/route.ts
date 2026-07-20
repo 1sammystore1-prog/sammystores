@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       await Transaction.create({
         userId,
         type: 'virtual_number',
-        description: `BenOTP ${poolLabel(pool)}: ${order.phoneNumber} (${service})`,
+        description: `Virtual number (${poolLabel(pool)}): ${order.phoneNumber} (${service})`,
         amount: priceNgn,
         status: 'success',
         activationId: order.activationId,
