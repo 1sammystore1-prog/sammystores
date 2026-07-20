@@ -115,7 +115,7 @@ export async function POST(request: Request) {
       await Transaction.create({
         userId,
         type: 'virtual_number',
-        description: `TigerSMS: ${order.number} (${selectedService.name} - ${country})`,
+        description: `Virtual number: ${order.number} (${selectedService.name} - ${country})`,
         amount: priceNgn,
         status: 'success',
         activationId: order.id
