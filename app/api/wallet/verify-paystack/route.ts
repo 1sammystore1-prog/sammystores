@@ -14,6 +14,7 @@ import { sendWalletFundedEmail } from '@/lib/email';
 
 // One-time welcome bonus credited on a user's first successful deposit.
 const WELCOME_BONUS_AMOUNT = 500;
+const REFERRAL_BONUS_AMOUNT = 500;
 
 export async function POST(request: Request) {
   try {
