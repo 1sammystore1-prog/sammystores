@@ -8,7 +8,7 @@ function CallbackInner() {
   const params = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'checking' | 'success' | 'error'>('checking');
-  const [message, setMessage] = useState('Confirming your payment with Paystack...');
+  const [message, setMessage] = useState('Confirming your payment...');
 
   useEffect(() => {
     const reference = params.get('reference') || params.get('trxref');
@@ -25,7 +25,18 @@ function CallbackInner() {
       return;
     }
 
-    fetch('/api/wallet/verify-paystack', {
+    // References are prefixed by the gateway that created them
+    // (SAMMY-PF-... for Pocketfi, SAMMY-... for Paystack) so we know which
+    // verify endpoint to call without an extra lookup.
+    const verifyEndpoint = reference.startsWith('SAMMY-PF-')
+      ? '/api/wallet/verify-pocketfi'
+      : '/api/wallet/verify-paystack';
+
+    setMessage(reference.startsWith('SAMMY-PF-')
+      ? 'Confirming your payment with Pocketfi...'
+      : 'Confirming your payment with Paystack...');
+
+    fetch(verifyEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
