@@ -42,12 +42,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'NeuraPay is not configured' }, { status: 500 });
     }
 
-    const statusRes = await axios.get(`${NEURAPAY_BASE_URL}/transactions/${encodeURIComponent(reference)}`, {
-      headers: {
-        Authorization: `Bearer ${secretKey}`,
-        'X-Business-Id': businessId,
-      },
-    });
+    // NOTE: we don't yet know NeuraPay's own transaction id for this
+    // payment (only their webhook tells us that, and it differs from the
+    // reference we generated). Until that's captured, this direct status
+    // lookup will typically 404 - that's expected, not a real failure, so
+    // we treat it as "still pending" rather than surfacing a raw API
+    // error to the user. The webhook is what actually credits the wallet
+    // in the normal case; this is just a best-effort manual nudge.
+    const neurapayReference = txn.metadata?.neurapayReference;
+    if (!neurapayReference) {
+      return NextResponse.json({ success: true, status: 'pending' });
+    }
+
+    let statusRes;
+    try {
+      statusRes = await axios.get(`${NEURAPAY_BASE_URL}/transactions/${encodeURIComponent(neurapayReference)}`, {
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          'X-Business-Id': businessId,
+        },
+      });
+    } catch (lookupError: any) {
+      console.error('NeuraPay status lookup failed (treating as still pending):', lookupError.response?.status);
+      return NextResponse.json({ success: true, status: 'pending' });
+    }
 
     const data = statusRes.data?.data || statusRes.data;
     const status = data?.status;
@@ -60,7 +78,8 @@ export async function POST(request: Request) {
     const netAmount = Number(data.net_amount) || grossAmount;
 
     const result = await creditNeurapayTransaction({
-      reference,
+      reference: neurapayReference,
+      virtualAccount: txn.metadata?.accountNumber,
       grossAmount,
       netAmount,
       providerReference: data.provider_reference,

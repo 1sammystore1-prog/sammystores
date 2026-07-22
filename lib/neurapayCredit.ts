@@ -19,16 +19,29 @@ const WELCOME_BONUS_AMOUNT = 500;
  * typed into the amount field.
  */
 export async function creditNeurapayTransaction(params: {
-  reference: string;
+  reference?: string;
+  virtualAccount?: string;
   grossAmount: number;
   netAmount: number;
   providerReference?: string;
 }): Promise<{ credited: boolean; alreadyProcessed: boolean; newBalance: number }> {
-  const { reference, grossAmount, netAmount, providerReference } = params;
+  const { reference, virtualAccount, grossAmount, netAmount, providerReference } = params;
 
-  const txn = await Transaction.findOne({ activationId: reference, type: 'wallet_fund' });
+  // NeuraPay's webhook "reference" field is THEIR internally-generated
+  // transaction id (e.g. "TXN-..."), not the reference we sent when
+  // creating the virtual account - so we can't reliably look our pending
+  // Transaction up by that. The virtual account number is the one value
+  // guaranteed to be shared between our records and NeuraPay's, so we
+  // match on that first and only fall back to our own reference if for
+  // some reason the account number isn't available.
+  const txn = virtualAccount
+    ? await Transaction.findOne({ 'metadata.accountNumber': virtualAccount, type: 'wallet_fund' })
+    : await Transaction.findOne({ activationId: reference, type: 'wallet_fund' });
+
   if (!txn) {
-    throw new Error(`No pending wallet_fund transaction for reference ${reference}`);
+    throw new Error(
+      `No pending wallet_fund transaction for virtualAccount=${virtualAccount} reference=${reference}`
+    );
   }
 
   if (txn.status === 'success') {
@@ -38,11 +51,6 @@ export async function creditNeurapayTransaction(params: {
 
   const creditAmount = netAmount > 0 ? netAmount : grossAmount;
 
-  // Atomic guard: only the first caller to flip status -> success actually
-  // proceeds to credit the wallet. A concurrent second call (webhook AND
-  // manual check landing at the same moment) gets updatedTxn === null and
-  // falls through to the "already processed" branch instead of crediting
-  // twice.
   const updatedTxn = await Transaction.findOneAndUpdate(
     { _id: txn._id, status: { $ne: 'success' } },
     {
@@ -51,6 +59,7 @@ export async function creditNeurapayTransaction(params: {
         amount: creditAmount,
         description: `Wallet funding via NeuraPay (₦${creditAmount})`,
         'metadata.providerReference': providerReference,
+        'metadata.neurapayReference': reference,
         'metadata.grossAmount': grossAmount,
         'metadata.netAmount': netAmount,
       },
@@ -71,7 +80,6 @@ export async function creditNeurapayTransaction(params: {
 
   let finalBalance = user?.walletBalance ?? 0;
 
-  // Welcome bonus: only on the user's very first successful deposit.
   const successfulDepositCount = await Transaction.countDocuments({
     userId: txn.userId,
     type: 'wallet_fund',
@@ -97,7 +105,6 @@ export async function creditNeurapayTransaction(params: {
 
       finalBalance = bonusedUser?.walletBalance ?? finalBalance;
     } catch (bonusError: any) {
-      // Duplicate key (E11000) = already awarded by a concurrent request.
       if (bonusError?.code !== 11000) {
         console.error('Welcome bonus error:', bonusError.message);
       }
