@@ -49,15 +49,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ status: 'success' });
   }
 
-  const { reference, amount, net_amount, provider_reference } = event.data || {};
-  if (!reference) {
-    return NextResponse.json({ status: 'error', message: 'Missing reference' }, { status: 400 });
+  const { reference, amount, net_amount, provider_reference, virtual_account } = event.data || {};
+  if (!virtual_account && !reference) {
+    return NextResponse.json({ status: 'error', message: 'Missing reference/virtual_account' }, { status: 400 });
   }
 
   try {
     await dbConnect();
     await creditNeurapayTransaction({
       reference,
+      virtualAccount: virtual_account,
       grossAmount: Number(amount) || 0,
       netAmount: Number(net_amount) || Number(amount) || 0,
       providerReference: provider_reference,

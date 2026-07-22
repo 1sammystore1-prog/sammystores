@@ -56,9 +56,10 @@ export async function POST(request: Request) {
     });
 
     // We don't know NeuraPay's exact response field names with certainty,
-    // so we check a few plausible shapes rather than assuming one. If none
-    // match, we fail loudly instead of showing the user a blank/broken
-    // account number.
+    // so we check a few plausible shapes rather than assuming one, and log
+    // the full raw response every time (not just on failure) so we can
+    // read the real field names from server logs on the next test call.
+    console.log('NeuraPay virtual-account creation response:', JSON.stringify(response.data));
     const payload = response.data?.data || response.data;
     const accountNumber = payload?.account_number || payload?.virtual_account || payload?.accountNumber;
     const bankName = payload?.bank_name || payload?.bankName || 'Paga';

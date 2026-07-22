@@ -74,8 +74,6 @@ export default function FundPage() {
       const data = await res.json();
 
       if (data.success && data.url) {
-        // Send the user to Paystack's hosted checkout. They'll be brought
-        // back to /fund/callback afterwards, which verifies and credits.
         window.location.href = data.url;
         return;
       } else {
@@ -114,8 +112,6 @@ export default function FundPage() {
       const data = await res.json();
 
       if (data.success && data.account) {
-        // NeuraPay virtual accounts don't redirect anywhere - show the
-        // account details right here and start checking for payment.
         setNeurapayAccount(data.account);
         setNeurapayReference(data.reference);
         setNeurapayIntendedAmount(data.intendedAmount);
@@ -156,7 +152,7 @@ export default function FundPage() {
           .catch(console.error);
       } else if (data.success) {
         setNeurapayMsgType('error');
-        setNeurapayMsg('No payment received yet. Transfer to the account above, then check again.');
+        setNeurapayMsg('No payment received yet. If you already transferred, it can take a minute to confirm — this checks automatically every few seconds.');
       } else {
         setNeurapayMsgType('error');
         setNeurapayMsg(data.error || 'Could not check payment status');
