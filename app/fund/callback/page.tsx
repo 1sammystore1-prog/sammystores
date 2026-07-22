@@ -8,7 +8,7 @@ function CallbackInner() {
   const params = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'checking' | 'success' | 'error'>('checking');
-  const [message, setMessage] = useState('Confirming your payment with Paystack...');
+  const [message, setMessage] = useState('Confirming your payment...');
 
   useEffect(() => {
     const reference = params.get('reference') || params.get('trxref');
@@ -24,6 +24,11 @@ function CallbackInner() {
       setMessage('Please login to complete this payment.');
       return;
     }
+
+    // This callback page is only reached via Paystack's hosted-checkout
+    // redirect. NeuraPay virtual accounts don't redirect anywhere - that
+    // flow is confirmed on the /fund page itself (webhook + manual check).
+    setMessage('Confirming your payment with Paystack...');
 
     fetch('/api/wallet/verify-paystack', {
       method: 'POST',

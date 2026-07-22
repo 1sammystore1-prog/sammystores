@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 // Paystack is temporarily paused (compliance flag on the account).
 // Flip this back to true once Paystack is reactivated.
 const PAYSTACK_ENABLED = false;
+const NEURAPAY_ENABLED = true;
 
 const BANK_DETAILS = {
   bank: 'United Bank of Africa (UBA)',
@@ -20,6 +21,13 @@ export default function FundPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('');
+  const [neurapayLoading, setNeurapayLoading] = useState(false);
+  const [neurapayMsg, setNeurapayMsg] = useState('');
+  const [neurapayMsgType, setNeurapayMsgType] = useState('');
+  const [neurapayAccount, setNeurapayAccount] = useState<{ accountNumber: string; bankName: string; accountName: string } | null>(null);
+  const [neurapayReference, setNeurapayReference] = useState('');
+  const [neurapayIntendedAmount, setNeurapayIntendedAmount] = useState(0);
+  const [neurapayChecking, setNeurapayChecking] = useState(false);
   const [manualLoading, setManualLoading] = useState(false);
   const [manualMsg, setManualMsg] = useState('');
   const [manualMsgType, setManualMsgType] = useState('');
@@ -80,6 +88,97 @@ export default function FundPage() {
     }
     setLoading(false);
   };
+
+  const handleNeurapayFund = async () => {
+    setNeurapayLoading(true);
+    setNeurapayMsg('');
+    setNeurapayAccount(null);
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setNeurapayMsgType('error');
+      setNeurapayMsg('Please login to fund your wallet');
+      setNeurapayLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/wallet/fund-neurapay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount: parseFloat(amount) })
+      });
+      const data = await res.json();
+
+      if (data.success && data.account) {
+        // NeuraPay virtual accounts don't redirect anywhere - show the
+        // account details right here and start checking for payment.
+        setNeurapayAccount(data.account);
+        setNeurapayReference(data.reference);
+        setNeurapayIntendedAmount(data.intendedAmount);
+      } else {
+        setNeurapayMsgType('error');
+        setNeurapayMsg(data.error || 'Failed to generate a payment account');
+      }
+    } catch (error: any) {
+      setNeurapayMsgType('error');
+      setNeurapayMsg('Network error: ' + error.message);
+    }
+    setNeurapayLoading(false);
+  };
+
+  const checkNeurapayStatus = async () => {
+    if (!neurapayReference) return;
+    setNeurapayChecking(true);
+    setNeurapayMsg('');
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('/api/wallet/check-neurapay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ reference: neurapayReference })
+      });
+      const data = await res.json();
+      if (data.success && data.status === 'success') {
+        setNeurapayMsgType('success');
+        setNeurapayMsg('Payment received! Your wallet has been credited.');
+        setNeurapayAccount(null);
+        setNeurapayReference('');
+        fetch('/api/wallet/balance', { headers: { 'Authorization': `Bearer ${token}` } })
+          .then(res => res.json())
+          .then(d => { if (typeof d.balance === 'number') setBalance(d.balance); })
+          .catch(console.error);
+      } else if (data.success) {
+        setNeurapayMsgType('error');
+        setNeurapayMsg('No payment received yet. Transfer to the account above, then check again.');
+      } else {
+        setNeurapayMsgType('error');
+        setNeurapayMsg(data.error || 'Could not check payment status');
+      }
+    } catch (error: any) {
+      setNeurapayMsgType('error');
+      setNeurapayMsg('Network error: ' + error.message);
+    }
+    setNeurapayChecking(false);
+  };
+
+  // Auto-poll every 10s while a virtual account is showing, so most users
+  // never have to tap "Check status" manually - it just updates once the
+  // webhook (or this poll itself) confirms the transfer.
+  useEffect(() => {
+    if (!neurapayReference) return;
+    const interval = setInterval(() => {
+      checkNeurapayStatus();
+    }, 10000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [neurapayReference]);
 
   const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -218,6 +317,56 @@ export default function FundPage() {
                 msgType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
               }`}>
                 <p className="font-semibold">{msg}</p>
+              </div>
+            )}
+
+            <button
+              onClick={handleNeurapayFund}
+              disabled={!NEURAPAY_ENABLED || neurapayLoading || !amount || !!neurapayAccount}
+              className="btn-primary w-full disabled:opacity-50 mt-3"
+            >
+              {!NEURAPAY_ENABLED
+                ? 'NeuraPay Temporarily Unavailable'
+                : neurapayLoading
+                  ? 'Generating Payment Account...'
+                  : neurapayAccount
+                    ? 'Payment Account Generated'
+                    : 'Pay with NeuraPay'}
+            </button>
+
+            {neurapayAccount && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-xl space-y-2">
+                <p className="text-sm text-gray-600 mb-2">
+                  Transfer <span className="font-bold text-gray-800">₦{neurapayIntendedAmount.toLocaleString()}</span> to the account below. Your wallet is credited automatically once received.
+                </p>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Bank</span>
+                  <span className="font-semibold text-gray-800">{neurapayAccount.bankName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Account Number</span>
+                  <span className="font-semibold text-gray-800">{neurapayAccount.accountNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Account Name</span>
+                  <span className="font-semibold text-gray-800">{neurapayAccount.accountName}</span>
+                </div>
+                <button
+                  onClick={checkNeurapayStatus}
+                  disabled={neurapayChecking}
+                  className="btn-primary w-full disabled:opacity-50 mt-2"
+                >
+                  {neurapayChecking ? 'Checking...' : "I've Made the Transfer - Check Status"}
+                </button>
+                <p className="text-xs text-gray-400 text-center">We also check automatically every few seconds.</p>
+              </div>
+            )}
+
+            {neurapayMsg && (
+              <div className={`mt-6 p-4 rounded-xl ${
+                neurapayMsgType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}>
+                <p className="font-semibold">{neurapayMsg}</p>
               </div>
             )}
           </div>
