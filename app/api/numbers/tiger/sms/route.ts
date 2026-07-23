@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     // easily-guessable/sequential integers) could read any user's OTP
     // codes, which is a direct account-takeover vector for whatever
     // service that number was used to verify.
-    const userId = getUserId(req);
+    const userId = await getUserId(req);
     if (!userId) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },

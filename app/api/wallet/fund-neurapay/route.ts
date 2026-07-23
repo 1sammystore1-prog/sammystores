@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
 
-    const userId = getUserId(request);
+    const userId = await getUserId(request);
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
     }

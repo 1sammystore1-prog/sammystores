@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     let ticketId: string | null = null;
 
     if (escalate) {
-      const userId = getUserId(request);
+      const userId = await getUserId(request);
       if (!userId) {
         // Can't create a ticket without an account. Tell the bot's reply
         // to still show, but let the frontend know it needs to prompt

@@ -14,7 +14,7 @@ type CheckoutResult = { productId: string; name: string; success: boolean; error
 
 export async function POST(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
 
   const user = await User.findById(userId);

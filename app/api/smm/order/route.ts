@@ -8,7 +8,7 @@ import { getMarkups, computeMarkup, toNgn } from '@/lib/pricing';
 
 export async function POST(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ error: 'Please login' }, { status: 401 });
 
   const { service, link, quantity } = await request.json();

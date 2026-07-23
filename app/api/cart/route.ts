@@ -13,7 +13,7 @@ function cartTotal(items: Array<{ type: string; unitPrice: number; quantity: num
 
 export async function GET(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
 
   const cart = await Cart.findOne({ userId });
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
 
   const { type, productId, name, category, unitPrice, quantity, link } = await request.json();
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
 
   const { productId, link } = await request.json().catch(() => ({ productId: null, link: null }));

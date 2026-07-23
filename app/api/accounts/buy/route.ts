@@ -11,7 +11,7 @@ import { sendOrderConfirmationEmail } from '@/lib/email';
 // instead, matching the /accounts vs /logs page split.
 export async function POST(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
 
   const { productId, amount, coupon } = await request.json();

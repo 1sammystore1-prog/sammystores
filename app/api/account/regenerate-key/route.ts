@@ -6,7 +6,7 @@ import { getUserId } from '@/lib/auth';
 
 export async function POST(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
 
   // Cryptographically random, same scheme as registration - this key is
