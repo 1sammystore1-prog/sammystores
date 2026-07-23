@@ -31,6 +31,28 @@ export default function FundPage() {
     }
   }, []);
 
+  // Silently checks whether the user ALREADY has a saved account for this
+  // channel (no identity fields sent) - the backend returns it immediately
+  // if it exists, without requiring/validating BVN/NIN again. Only if this
+  // comes back empty do we need to show the PalmPay verification form.
+  const checkExistingAccount = async (channel: 'paga' | 'palmpay') => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const res = await fetch('/api/wallet/fund-neurapay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ channel, checkOnly: true }),
+      });
+      const data = await res.json();
+      if (data.success && data.account) {
+        setNeurapayAccount(data.account);
+      }
+    } catch {
+      // Silent - this is just a background check, not a user action.
+    }
+  };
+
   const handleNeurapayFund = async (channelOverride?: 'paga' | 'palmpay') => {
     const channel = channelOverride || neurapayChannel;
     if (channel === 'palmpay' && (!identityType || !/^\d{11}$/.test(identityNumber))) {
@@ -83,18 +105,7 @@ export default function FundPage() {
   // press a button every time - fund-neurapay just returns the saved one
   // if it already exists, with no NeuraPay API call.
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    fetch('/api/wallet/fund-neurapay', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ channel: 'paga' }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.account) setNeurapayAccount(data.account);
-      })
-      .catch(() => {});
+    checkExistingAccount('paga');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -144,7 +155,7 @@ export default function FundPage() {
                     onClick={() => {
                       setNeurapayChannel('paga');
                       setNeurapayAccount(null);
-                      handleNeurapayFund('paga');
+                      checkExistingAccount('paga');
                     }}
                     className={`flex-1 py-2 text-sm font-semibold transition-colors ${
                       neurapayChannel === 'paga' ? 'bg-[#f97316] text-white' : 'bg-white text-gray-600'
@@ -157,6 +168,7 @@ export default function FundPage() {
                     onClick={() => {
                       setNeurapayChannel('palmpay');
                       setNeurapayAccount(null);
+                      checkExistingAccount('palmpay');
                     }}
                     className={`flex-1 py-2 text-sm font-semibold transition-colors ${
                       neurapayChannel === 'palmpay' ? 'bg-[#f97316] text-white' : 'bg-white text-gray-600'
