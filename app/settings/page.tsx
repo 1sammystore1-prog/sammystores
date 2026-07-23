@@ -289,6 +289,9 @@ export default function SettingsPage() {
                 </button>
               </div>
               {keyMsg && <p className="mt-3 text-sm font-semibold text-gray-600">{keyMsg}</p>}
+              <Link href="/developers" className="block mt-3 text-sm text-[#f97316] font-semibold hover:underline">
+                View API documentation &rarr;
+              </Link>
             </div>
           </div>
 

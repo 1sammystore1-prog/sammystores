@@ -7,7 +7,7 @@ import { checkRateLimit } from '@/lib/rateLimit';
 export async function POST(request: Request) {
   await dbConnect();
 
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
 
   // Limit brute-force attempts against the current-password check, same

@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
 
-    const userId = getUserId(request);
+    const userId = await getUserId(request);
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
     }
@@ -25,6 +25,9 @@ export async function POST(request: Request) {
     const user = await User.findById(userId);
     if (!user) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    }
+    if (user.suspended) {
+      return NextResponse.json({ success: false, error: 'Your account is suspended. Contact support.' }, { status: 403 });
     }
 
     const { channel, identityType, identityNumber } = await request.json();

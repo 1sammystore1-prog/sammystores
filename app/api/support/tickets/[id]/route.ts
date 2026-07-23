@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 // View a single ticket - only the owning user can see it.
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 // same pattern as most helpdesk tools.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

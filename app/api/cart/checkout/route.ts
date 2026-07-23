@@ -14,7 +14,7 @@ type CheckoutResult = { productId: string; name: string; success: boolean; error
 
 export async function POST(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
 
   const user = await User.findById(userId);
@@ -320,21 +320,28 @@ export async function POST(request: Request) {
       const { validateCoupon, markCouponRedeemed } = await import('@/lib/coupon');
       const validation = await validateCoupon(couponCode, userId, totalSpent);
       if (validation.valid && validation.coupon && validation.discountAmount) {
-        finalUser = await User.findByIdAndUpdate(
-          userId,
-          { $inc: { walletBalance: validation.discountAmount } },
-          { new: true }
-        );
-        await Transaction.create({
-          userId,
-          type: 'coupon_discount',
-          description: `Coupon ${validation.coupon.code} applied`,
-          amount: validation.discountAmount,
-          status: 'success',
-          metadata: { couponCode: validation.coupon.code },
-        });
-        await markCouponRedeemed(validation.coupon._id);
-        couponApplied = { code: validation.coupon.code, discountAmount: validation.discountAmount };
+        // Claim the redemption FIRST, atomically. If someone else grabbed
+        // the last available use in the moment between our check above
+        // and now, this returns false and we simply don't grant the
+        // discount - rather than crediting it and THEN discovering the
+        // limit was already exceeded.
+        const redeemed = await markCouponRedeemed(validation.coupon._id);
+        if (redeemed) {
+          finalUser = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { walletBalance: validation.discountAmount } },
+            { new: true }
+          );
+          await Transaction.create({
+            userId,
+            type: 'coupon_discount',
+            description: `Coupon ${validation.coupon.code} applied`,
+            amount: validation.discountAmount,
+            status: 'success',
+            metadata: { couponCode: validation.coupon.code },
+          });
+          couponApplied = { code: validation.coupon.code, discountAmount: validation.discountAmount };
+        }
       }
     }
   }

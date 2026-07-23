@@ -51,7 +51,7 @@ async function resolveLivePriceNgn(
 export async function POST(request: Request) {
   await dbConnect();
 
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

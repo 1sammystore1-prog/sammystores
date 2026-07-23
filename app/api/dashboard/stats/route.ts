@@ -5,7 +5,7 @@ import Transaction from '@/models/Transaction';
 
 export async function GET(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
 
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);

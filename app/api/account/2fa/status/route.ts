@@ -5,7 +5,7 @@ import { getUserId } from '@/lib/auth';
 
 export async function GET(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
 
   const user = await User.findById(userId);

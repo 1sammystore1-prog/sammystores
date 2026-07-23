@@ -5,7 +5,7 @@ import { getUserId } from '@/lib/auth';
 
 export async function GET(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // Fetch all orders for this user, newest first

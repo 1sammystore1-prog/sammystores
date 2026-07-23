@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 // List the logged-in user's own tickets, most recently updated first.
 export async function GET(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 // the user's first message already in the thread.
 export async function POST(request: Request) {
   await dbConnect();
-  const userId = getUserId(request);
+  const userId = await getUserId(request);
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

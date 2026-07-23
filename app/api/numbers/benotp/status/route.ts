@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   try {
     await dbConnect();
 
-    const userId = getUserId(req);
+    const userId = await getUserId(req);
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
