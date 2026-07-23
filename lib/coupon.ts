@@ -61,8 +61,21 @@ export async function validateCoupon(
   return { valid: true, coupon, discountAmount };
 }
 
-// Call only after the order this discount belongs to has been confirmed
-// successful - increments usage count so limits are enforced correctly.
-export async function markCouponRedeemed(couponId: string) {
-  await Coupon.findByIdAndUpdate(couponId, { $inc: { usedCount: 1 } });
+// Atomically increments usedCount, but ONLY if usageLimit is still
+// unlimited or not yet reached - condition and increment happen in a
+// single database operation, so two simultaneous redemptions of the very
+// last available use can't both slip through (the same pattern used for
+// every wallet-balance debit elsewhere in this app). Returns false if the
+// limit had already been hit by the time this ran, so the caller knows
+// NOT to actually grant the discount it already computed.
+export async function markCouponRedeemed(couponId: string): Promise<boolean> {
+  const updated = await Coupon.findOneAndUpdate(
+    {
+      _id: couponId,
+      $or: [{ usageLimit: null }, { $expr: { $lt: ['$usedCount', '$usageLimit'] } }],
+    },
+    { $inc: { usedCount: 1 } },
+    { new: true }
+  );
+  return !!updated;
 }
