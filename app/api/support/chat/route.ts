@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       ticketId = String(ticket._id);
 
       sendTelegramMessage(
-        `🤖➡️👤 <b>Chat escalated to support</b>\nTicket created from the AI chat widget.\n<b>Transcript:</b>\n${transcriptToMessage(fullHistory).slice(0, 500)}`
+        `🤖➡️👤 <b>Chat escalated to support</b>\nTicket created from the AI chat widget.\n<b>Transcript:</b>\n${transcriptToMessage(fullHistory).slice(0, 500)}\n\n<i>Reply directly to this message to answer the customer.</i>\nTicket ID: ${ticketId}`
       );
     }
 

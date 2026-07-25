@@ -1,39 +1,54 @@
-1) Fix: customers short-changed by NeuraPay's fee  +  2) Mongoose deprecation cleanup
-========================================================================================
+Reply to support tickets directly from Telegram
+====================================================
+New:     lib/ticketReply.ts                       (shared reply logic)
+New:     app/api/webhooks/telegram/route.ts        (receives your replies)
+Updated: app/api/admin/tickets/[id]/route.ts       (now uses the shared helper)
+Updated: app/api/support/tickets/route.ts          (notification includes Ticket ID)
+Updated: app/api/support/tickets/[id]/route.ts     (was MISSING a notification
+                                                     entirely when a customer
+                                                     replied to an existing
+                                                     ticket - only new tickets
+                                                     notified you before; fixed)
+Updated: app/api/support/chat/route.ts             (notification includes Ticket ID)
 
-PART 1 - NeuraPay fee was being deducted from the CUSTOMER, not the store
-Updated: lib/neurapayCredit.ts
+HOW IT WORKS:
+Every ticket notification Telegram sends you now ends with a line like
+"Ticket ID: 64f1a2b3c4d5e6f7a8b9c0d1". To reply, use Telegram's native
+"Reply" feature (swipe or long-press the notification message) and type
+your answer - your reply gets posted to that exact ticket, the customer
+gets emailed, and Telegram confirms with a ✅ message back to you. No
+need to open the website or admin panel at all.
 
-Before: customers were credited NeuraPay's "net" amount (gross transfer
-minus NeuraPay's collection fee) - so someone who transferred ₦1000 might
-only see ₦970 in their wallet, with no explanation. Meanwhile you were
-ALSO paying your own NeuraPay fees separately.
+SETUP REQUIRED (two steps):
 
-Now: customers are credited the FULL amount they actually sent (gross).
-The store absorbs NeuraPay's collection fee as a cost of doing business,
-same as any normal payment processor setup. The fee amount is still
-recorded on the transaction's metadata (feeAbsorbedByStore) so you can
-see exactly how much NeuraPay's fees are costing you over time, without
-your customers ever seeing a short credit.
+1. Add a new env var - TELEGRAM_WEBHOOK_SECRET - to BOTH .env.local and
+   Vercel. This is just a random string YOU make up (not from Telegram),
+   used to verify incoming webhook calls are really from Telegram and
+   not someone else hitting your endpoint. Generate one with:
+     node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 
-PART 2 - Mongoose deprecation warning cleanup
-Updated (14 files): every findOneAndUpdate/findByIdAndUpdate call using
-the deprecated `{ new: true }` option now uses `{ returnDocument: 'after' }`
-instead, per Mongoose's own suggested replacement. Purely mechanical,
-same behavior, just removes the warning from your logs and future-proofs
-against Mongoose eventually removing the old option entirely.
-Files: app/api/account/regenerate-key, app/api/accounts/buy,
-app/api/admin/catalog/products/[id], app/api/admin/coupons/[id],
-app/api/admin/pricing, app/api/cart/checkout, app/api/catalog/buy,
-app/api/logs/buy, app/api/numbers/benotp/buy, app/api/numbers/tiger/buy,
-app/api/smm/order, lib/coupon.ts, lib/neurapayCredit.ts, lib/rateLimit.ts
+2. Register your webhook URL with Telegram (ONE-TIME, run this yourself
+   in any terminal - it's a direct call to Telegram's API, not something
+   that runs in your app). Replace the bracketed parts with your real
+   values:
+
+     curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
+       -d "url=https://yourdomain.com/api/webhooks/telegram" \
+       -d "secret_token=<THE_TELEGRAM_WEBHOOK_SECRET_YOU_JUST_MADE>"
+
+   You should get back {"ok":true,"result":true,...}. That's it - Telegram
+   now forwards every message sent to your bot to this endpoint.
 
 HOW TO USE:
 1. Upload to repo root in Codespace.
-2. unzip -o neurapay-fee-fix-and-mongoose-cleanup.zip -d .
-   rm neurapay-fee-fix-and-mongoose-cleanup.zip
-3. npm run dev - fund a wallet with a real test transfer, confirm the
-   FULL amount you sent shows up in the wallet (not a fee-reduced amount).
+2. unzip -o telegram-ticket-replies.zip -d .
+   rm telegram-ticket-replies.zip
+3. Add TELEGRAM_WEBHOOK_SECRET to .env.local (see step 1 above).
 4. git add -A
-   git commit -m "Credit customers full amount (store absorbs NeuraPay fee); fix Mongoose deprecation warnings"
+   git commit -m "Add Telegram reply support for tickets"
    git push
+5. Add TELEGRAM_WEBHOOK_SECRET to Vercel's env vars too, redeploy.
+6. Run the setWebhook curl command above ONCE.
+7. Test: wait for (or trigger) a ticket notification in Telegram, reply
+   to it, confirm you get the ✅ confirmation and the reply shows up on
+   the ticket in the admin panel / customer's support page.

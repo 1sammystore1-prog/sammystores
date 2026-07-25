@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     });
 
     sendTelegramMessage(
-      `🆕 <b>New support ticket</b>\n<b>Subject:</b> ${subject.trim()}\n<b>Message:</b> ${message.trim().slice(0, 300)}${cleanAttachment ? '\n📎 Screenshot attached (view in admin panel)' : ''}`
+      `🆕 <b>New support ticket</b>\n<b>Subject:</b> ${subject.trim()}\n<b>Message:</b> ${message.trim().slice(0, 300)}${cleanAttachment ? '\n📎 Screenshot attached (view in admin panel)' : ''}\n\n<i>Reply directly to this message to answer the customer.</i>\nTicket ID: ${ticket._id}`
     );
 
     return NextResponse.json({ success: true, ticket });
