@@ -26,7 +26,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     updates.price = numericPrice;
   }
 
-  const product = await CatalogProduct.findByIdAndUpdate(id, { $set: updates }, { new: true });
+  const product = await CatalogProduct.findByIdAndUpdate(id, { $set: updates }, { returnDocument: 'after' });
   if (!product) return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
 
   return NextResponse.json({ success: true, product });

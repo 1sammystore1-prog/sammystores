@@ -37,7 +37,7 @@ export async function checkRateLimit(
   let doc = await RateLimit.findOneAndUpdate(
     { key, windowStart: { $gt: cutoff } },
     { $inc: { count: 1 } },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!doc) {
@@ -45,7 +45,7 @@ export async function checkRateLimit(
     doc = await RateLimit.findOneAndUpdate(
       { key },
       { $set: { count: 1, windowStart: now } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
   }
 

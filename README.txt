@@ -1,40 +1,39 @@
-UX sweep: expired sessions, 404 page, crash page
-====================================================
+1) Fix: customers short-changed by NeuraPay's fee  +  2) Mongoose deprecation cleanup
+========================================================================================
 
-FINDING #1 - Expired/invalid sessions were silently broken on 7 of 9
-protected pages (dashboard, orders, history, fund, referrals, smm,
-numbers all lacked any 401 handling - only settings and cart had it).
-A user whose login token expired would just see broken/empty pages with
-no explanation, instead of being sent back to log in.
+PART 1 - NeuraPay fee was being deducted from the CUSTOMER, not the store
+Updated: lib/neurapayCredit.ts
 
-Fixed globally instead of patching each page separately:
-New:     components/SessionGuard.tsx  (patches window.fetch ONCE, checks
-                                        every authenticated request for a
-                                        401, redirects to /login?expired=1)
-Updated: app/layout.tsx               (renders SessionGuard globally)
-Updated: app/login/page.tsx           (shows "Your session expired -
-                                        please log in again" when
-                                        redirected here)
+Before: customers were credited NeuraPay's "net" amount (gross transfer
+minus NeuraPay's collection fee) - so someone who transferred ₦1000 might
+only see ₦970 in their wallet, with no explanation. Meanwhile you were
+ALSO paying your own NeuraPay fees separately.
 
-This only triggers for requests that were already sending a Bearer
-token - it deliberately does NOT trigger on the login/register forms'
-own fetch calls, so a wrong password still just shows a normal error,
-not a forced redirect.
+Now: customers are credited the FULL amount they actually sent (gross).
+The store absorbs NeuraPay's collection fee as a cost of doing business,
+same as any normal payment processor setup. The fee amount is still
+recorded on the transaction's metadata (feeAbsorbedByStore) so you can
+see exactly how much NeuraPay's fees are costing you over time, without
+your customers ever seeing a short credit.
 
-FINDING #2 - No custom 404 or crash page.
-Any mistyped URL, or any unexpected bug that crashes rendering, showed
-Next.js's bare default page with no branding and no way back to the site.
-New: app/not-found.tsx    (styled 404 page with a link back home)
-New: app/global-error.tsx (styled crash page with Try Again / Back Home)
+PART 2 - Mongoose deprecation warning cleanup
+Updated (14 files): every findOneAndUpdate/findByIdAndUpdate call using
+the deprecated `{ new: true }` option now uses `{ returnDocument: 'after' }`
+instead, per Mongoose's own suggested replacement. Purely mechanical,
+same behavior, just removes the warning from your logs and future-proofs
+against Mongoose eventually removing the old option entirely.
+Files: app/api/account/regenerate-key, app/api/accounts/buy,
+app/api/admin/catalog/products/[id], app/api/admin/coupons/[id],
+app/api/admin/pricing, app/api/cart/checkout, app/api/catalog/buy,
+app/api/logs/buy, app/api/numbers/benotp/buy, app/api/numbers/tiger/buy,
+app/api/smm/order, lib/coupon.ts, lib/neurapayCredit.ts, lib/rateLimit.ts
 
 HOW TO USE:
 1. Upload to repo root in Codespace.
-2. unzip -o ux-session-error-pages.zip -d .
-   rm ux-session-error-pages.zip
-3. npm run dev - test: visit a random nonsense URL (should show the new
-   404 page, not Next's default). To test session expiry, manually edit
-   localStorage's "token" value to garbage in devtools, then navigate to
-   /dashboard - should redirect to /login with the expired message.
+2. unzip -o neurapay-fee-fix-and-mongoose-cleanup.zip -d .
+   rm neurapay-fee-fix-and-mongoose-cleanup.zip
+3. npm run dev - fund a wallet with a real test transfer, confirm the
+   FULL amount you sent shows up in the wallet (not a fee-reduced amount).
 4. git add -A
-   git commit -m "Add global session-expiry handling, custom 404 and error pages"
+   git commit -m "Credit customers full amount (store absorbs NeuraPay fee); fix Mongoose deprecation warnings"
    git push

@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   const debited = await User.findOneAndUpdate(
     { _id: userId, walletBalance: { $gte: cost } },
     { $inc: { walletBalance: -cost } },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!debited) {

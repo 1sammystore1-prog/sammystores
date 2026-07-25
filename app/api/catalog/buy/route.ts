@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const item = await CatalogItem.findOneAndUpdate(
     { productId, status: 'available' },
     { $set: { status: 'sold', soldTo: userId, soldAt: new Date() } },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!item) {
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   const debited = await User.findOneAndUpdate(
     { _id: userId, walletBalance: { $gte: product.price } },
     { $inc: { walletBalance: -product.price } },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!debited) {

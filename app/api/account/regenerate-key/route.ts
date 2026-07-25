@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   // handed to the user directly, so it needs to be unguessable.
   const apiKey = 'sammy_' + crypto.randomBytes(20).toString('hex');
 
-  const user = await User.findByIdAndUpdate(userId, { $set: { apiKey } }, { new: true });
+  const user = await User.findByIdAndUpdate(userId, { $set: { apiKey } }, { returnDocument: 'after' });
   if (!user) return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
 
   return NextResponse.json({ success: true, apiKey: user.apiKey });

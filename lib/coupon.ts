@@ -75,7 +75,7 @@ export async function markCouponRedeemed(couponId: string): Promise<boolean> {
       $or: [{ usageLimit: null }, { $expr: { $lt: ['$usedCount', '$usageLimit'] } }],
     },
     { $inc: { usedCount: 1 } },
-    { new: true }
+    { returnDocument: 'after' }
   );
   return !!updated;
 }
