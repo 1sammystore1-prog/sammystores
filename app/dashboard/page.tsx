@@ -169,7 +169,7 @@ export default function DashboardPage() {
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Dashboard</h1>
           </div>
 
-          <div className="grid md:grid-cols-4 gap-6 mb-8">
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
             <div className="card p-6 bg-gradient-to-br from-orange-50 to-white">
               <h3 className="text-[#f97316] text-sm font-semibold mb-2">Wallet Balance</h3>
               <p className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">₦{balance.toLocaleString()}.00</p>
@@ -191,6 +191,11 @@ export default function DashboardPage() {
               <p className="text-3xl md:text-4xl font-bold text-gray-800">{totalTransactions}</p>
             </div>
 
+            <div className="card p-6">
+              <h3 className="text-gray-500 text-sm font-semibold mb-2">Active Numbers</h3>
+              <p className="text-3xl md:text-4xl font-bold text-gray-800">{activeNumbers}</p>
+            </div>
+
             <div className="card p-6 bg-gradient-to-br from-purple-50 to-white">
               <h3 className="text-purple-600 text-sm font-semibold mb-2">Loyalty Tier</h3>
               {loyalty ? (
@@ -210,12 +215,6 @@ export default function DashboardPage() {
               ) : (
                 <p className="text-sm text-gray-400">Loading...</p>
               )}
-            </div>
-          </div>
-
-            <div className="card p-6">
-              <h3 className="text-gray-500 text-sm font-semibold mb-2">Active Numbers</h3>
-              <p className="text-3xl md:text-4xl font-bold text-gray-800">{activeNumbers}</p>
             </div>
           </div>
 
