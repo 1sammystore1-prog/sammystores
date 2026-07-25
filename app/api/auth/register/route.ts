@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import crypto from 'crypto';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { sendVerificationEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
   try {
@@ -44,6 +45,12 @@ export async function POST(request: Request) {
     // user as their API key, so it needs to be unguessable.
     const apiKey = 'sammy_' + crypto.randomBytes(20).toString('hex');
 
+    // Same pattern as password reset: only the HASH is stored, the raw
+    // token only ever exists in the emailed link.
+    const rawVerificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenHash = crypto.createHash('sha256').update(rawVerificationToken).digest('hex');
+    const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
     // Pass the PLAIN password - the schema's pre('save') hook hashes it
     // exactly once. Hashing it here too would double-hash it, which would
     // make login fail even with the correct password.
@@ -55,14 +62,25 @@ export async function POST(request: Request) {
       if (referrer) referredBy = referrer._id;
     }
 
+    const normalizedEmail = String(email).toLowerCase().trim();
+
     const newUser = await User.create({
       name,
-      email: String(email).toLowerCase().trim(),
+      email: normalizedEmail,
       password,
       apiKey,
       walletBalance: 0,
-      referredBy
+      referredBy,
+      emailVerified: false,
+      verificationTokenHash,
+      verificationTokenExpires: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
     });
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const verifyUrl = `${siteUrl}/verify-email?token=${rawVerificationToken}&email=${encodeURIComponent(normalizedEmail)}`;
+    sendVerificationEmail({ to: normalizedEmail, verifyUrl }).catch((err) =>
+      console.error('Verification email failed to send:', err)
+    );
 
     return NextResponse.json({
       success: true,

@@ -19,6 +19,14 @@ export interface IUser extends Document {
   };
   resetPasswordTokenHash?: string;
   resetPasswordExpires?: Date;
+  // Explicitly false only for accounts created after this feature shipped -
+  // existing accounts are left as undefined and treated as verified
+  // everywhere in the app (checked as `=== false`, never `!== true`), so
+  // nobody who already had a working account suddenly gets locked out or
+  // nagged by a feature that didn't exist when they signed up.
+  emailVerified?: boolean;
+  verificationTokenHash?: string;
+  verificationTokenExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -59,6 +67,9 @@ const UserSchema: Schema<IUser> = new Schema(
     // ever exists in the emailed link, never persisted.
     resetPasswordTokenHash: { type: String, default: null },
     resetPasswordExpires: { type: Date, default: null },
+    emailVerified: { type: Boolean, default: false },
+    verificationTokenHash: { type: String, default: null },
+    verificationTokenExpires: { type: Date, default: null },
   },
   { timestamps: true }
 );

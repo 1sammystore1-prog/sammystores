@@ -13,6 +13,7 @@ interface Profile {
   walletBalance: number;
   createdAt: string;
   suspended: boolean;
+  emailVerified: boolean;
 }
 
 export default function SettingsPage() {
@@ -32,10 +33,28 @@ export default function SettingsPage() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
   const [keyMsg, setKeyMsg] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
 
   const authHeaders = () => {
     const token = localStorage.getItem('token');
     return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const handleResendVerification = async () => {
+    setResendLoading(true);
+    setResendMsg('');
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      setResendMsg(data.success ? data.message : data.error || 'Failed to send');
+    } catch {
+      setResendMsg('Network error');
+    }
+    setResendLoading(false);
   };
 
   const fetchProfile = async () => {
@@ -178,10 +197,29 @@ export default function SettingsPage() {
                   <span className="text-gray-500">Name</span>
                   <span className="text-gray-800 font-semibold">{profile?.name}</span>
                 </div>
-                <div className="flex justify-between border-b border-gray-100 pb-2">
+                <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                   <span className="text-gray-500">Email</span>
-                  <span className="text-gray-800 font-semibold">{profile?.email}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-800 font-semibold">{profile?.email}</span>
+                    {profile?.emailVerified === false ? (
+                      <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-semibold">Unverified</span>
+                    ) : (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Verified</span>
+                    )}
+                  </div>
                 </div>
+                {profile?.emailVerified === false && (
+                  <div className="flex justify-end -mt-1 pb-2 border-b border-gray-100">
+                    <button
+                      onClick={handleResendVerification}
+                      disabled={resendLoading}
+                      className="text-xs text-[#f97316] font-semibold hover:underline disabled:opacity-50"
+                    >
+                      {resendLoading ? 'Sending...' : 'Resend verification email'}
+                    </button>
+                  </div>
+                )}
+                {resendMsg && <p className="text-xs text-gray-500 text-right -mt-1 pb-2">{resendMsg}</p>}
                 <div className="flex justify-between">
                   <span className="text-gray-500">Member since</span>
                   <span className="text-gray-800 font-semibold">

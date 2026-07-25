@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const userId = await getUserId(request);
   if (!userId) return NextResponse.json({ success: false, error: 'Please login' }, { status: 401 });
 
-  const user = await User.findById(userId).select('name email apiKey walletBalance createdAt suspended');
+  const user = await User.findById(userId).select('name email apiKey walletBalance createdAt suspended emailVerified');
   if (!user) return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
 
   return NextResponse.json({
@@ -20,6 +20,10 @@ export async function GET(request: Request) {
       walletBalance: user.walletBalance,
       createdAt: user.createdAt,
       suspended: user.suspended,
+      // undefined (legacy pre-feature accounts) is treated as verified
+      // everywhere this is read - only an explicit false means "show the
+      // verify banner".
+      emailVerified: user.emailVerified !== false,
     },
   });
 }

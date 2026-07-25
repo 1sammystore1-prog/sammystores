@@ -80,6 +80,21 @@ export async function sendWalletFundedEmail(params: {
   return sendEmail(to, 'Wallet Funded Successfully', html);
 }
 
+export async function sendVerificationEmail(params: {
+  to: string;
+  verifyUrl: string;
+}) {
+  const { to, verifyUrl } = params;
+  const html = wrapTemplate('Verify Your Email', `
+    <p>Welcome to Sammy's Store! Please confirm this is your email address - this link expires in 24 hours.</p>
+    <p style="text-align: center; margin: 24px 0;">
+      <a href="${verifyUrl}" style="background: #f97316; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Verify Email</a>
+    </p>
+    <p style="font-size: 13px; color: #6b7280;">If you didn't create an account with us, you can safely ignore this email.</p>
+  `);
+  return sendEmail(to, 'Verify Your Email - Sammy\'s Store', html);
+}
+
 export async function sendPasswordResetEmail(params: {
   to: string;
   resetUrl: string;
