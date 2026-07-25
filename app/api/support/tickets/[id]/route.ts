@@ -71,5 +71,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   ticket.status = 'pending';
   await ticket.save();
 
+  // This was previously missing entirely - a customer replying to an
+  // existing ticket never notified the admin at all, only brand-new
+  // tickets did.
+  sendTelegramMessage(
+    `💬 <b>New reply on ticket</b>\n<b>Subject:</b> ${ticket.subject}\n<b>Message:</b> ${message.trim().slice(0, 300)}${cleanAttachment ? '\n📎 Screenshot attached (view in admin panel)' : ''}\n\n<i>Reply directly to this message to answer the customer.</i>\nTicket ID: ${ticket._id}`
+  );
+
   return NextResponse.json({ success: true, ticket });
 }

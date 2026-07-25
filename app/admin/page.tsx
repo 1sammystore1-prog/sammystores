@@ -19,7 +19,12 @@ const BENOTP_POOL_LABELS: { key: string; label: string }[] = [
 
 export default function AdminPage() {
   const router = useRouter();
-  const [stats, setStats] = useState<any>({ totalUsers: 0, totalWalletBalance: 0, totalTransactions: 0 });
+  const [stats, setStats] = useState<any>({
+    totalUsers: 0,
+    totalWalletBalance: 0,
+    totalTransactions: 0,
+    neurapayFeesAbsorbed: { allTime: 0, allTimeCount: 0, thisMonth: 0, thisMonthCount: 0 },
+  });
   const [users, setUsers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [markups, setMarkups] = useState<Record<string, number>>({ numbers: 0, smm: 0, accounts: 0 });
@@ -239,7 +244,7 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
+      <div className="grid md:grid-cols-4 gap-6 mb-8">
         <div className="bg-gradient-to-br from-white to-gray-50 border border-[#f97316]/30 rounded-xl p-6 hover:shadow-[0_0_30px_rgba(249,115,22,0.3)] transition-all">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-gray-500 font-mono text-sm">{`> TOTAL_USERS`}</h3>
@@ -262,6 +267,17 @@ export default function AdminPage() {
             <span className="text-3xl">📊</span>
           </div>
           <p className="text-4xl font-bold text-green-600">{stats.totalTransactions}</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-white to-gray-50 border border-red-300/30 rounded-xl p-6 hover:shadow-[0_0_30px_rgba(239,68,68,0.3)] transition-all">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-gray-500 font-mono text-sm">{`> NEURAPAY_FEES_ABSORBED`}</h3>
+            <span className="text-3xl">📉</span>
+          </div>
+          <p className="text-4xl font-bold text-red-600">₦{(stats.neurapayFeesAbsorbed?.thisMonth ?? 0).toLocaleString()}</p>
+          <p className="text-xs text-gray-400 mt-1 font-mono">
+            this month ({stats.neurapayFeesAbsorbed?.thisMonthCount ?? 0} deposits) · ₦{(stats.neurapayFeesAbsorbed?.allTime ?? 0).toLocaleString()} all-time
+          </p>
         </div>
       </div>
 

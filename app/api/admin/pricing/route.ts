@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   const doc = await PricingSettings.findOneAndUpdate(
     { key: 'pricing' },
     { $set: update },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 
   invalidateMarkupCache();

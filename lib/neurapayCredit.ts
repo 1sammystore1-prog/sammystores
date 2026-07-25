@@ -51,7 +51,14 @@ export async function creditNeurapayTransaction(params: {
     throw new Error(`No user found with NeuraPay virtual account ${virtualAccount}`);
   }
 
-  const creditAmount = netAmount > 0 ? netAmount : grossAmount;
+  // Credit the customer the FULL amount they actually sent (gross) -
+  // NeuraPay's own collection fee is absorbed by the store, not passed
+  // on to the customer as a smaller-than-expected wallet credit. The fee
+  // itself is still recorded in metadata below so it's visible for your
+  // own accounting (how much NeuraPay's fees are costing you over time),
+  // it's just no longer deducted from what the customer receives.
+  const feeAmount = grossAmount > 0 && netAmount > 0 ? Math.max(0, grossAmount - netAmount) : 0;
+  const creditAmount = grossAmount > 0 ? grossAmount : netAmount;
 
   // Idempotency: try to create the success record FIRST, keyed on
   // NeuraPay's own reference. If one already exists for this transfer
@@ -67,7 +74,7 @@ export async function creditNeurapayTransaction(params: {
       amount: creditAmount,
       status: 'success',
       reference: `neurapay-${reference}`,
-      metadata: { accountNumber: virtualAccount, providerReference, grossAmount, netAmount },
+      metadata: { accountNumber: virtualAccount, providerReference, grossAmount, netAmount, feeAbsorbedByStore: feeAmount },
     });
   } catch (err: any) {
     if (err?.code === 11000) {
@@ -80,7 +87,7 @@ export async function creditNeurapayTransaction(params: {
   const updatedUser = await User.findByIdAndUpdate(
     user._id,
     { $inc: { walletBalance: creditAmount } },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   let finalBalance = updatedUser?.walletBalance ?? 0;
@@ -105,7 +112,7 @@ export async function creditNeurapayTransaction(params: {
       const bonusedUser = await User.findByIdAndUpdate(
         user._id,
         { $inc: { walletBalance: WELCOME_BONUS_AMOUNT } },
-        { new: true }
+        { returnDocument: 'after' }
       );
 
       finalBalance = bonusedUser?.walletBalance ?? finalBalance;
