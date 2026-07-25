@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import BenotpServerGrid from '@/components/BenotpServerGrid';
+import NumbersHistory from '@/components/NumbersHistory';
 import type { BenotpPool } from '@/lib/benotp';
 
 interface Country {
@@ -29,6 +30,7 @@ interface Order {
 
 export default function VirtualNumbersPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'buy' | 'history'>('buy');
   const [provider, setProvider] = useState<'tigersms' | 'benotp'>('tigersms');
   const [countries, setCountries] = useState<Country[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -623,6 +625,34 @@ export default function VirtualNumbersPage() {
           <p className="text-gray-400">Get instant SMS verification numbers worldwide</p>
         </div>
 
+        {/* Buy / History Tabs */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setActiveTab('buy')}
+            className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-colors ${
+              activeTab === 'buy'
+                ? 'bg-[#f97316] text-white'
+                : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'
+            }`}
+          >
+            Buy a Number
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-colors ${
+              activeTab === 'history'
+                ? 'bg-[#f97316] text-white'
+                : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'
+            }`}
+          >
+            History
+          </button>
+        </div>
+
+        {activeTab === 'history' && <NumbersHistory />}
+
+        {activeTab === 'buy' && (
+        <>
         {/* Provider Tabs */}
         <div className="flex gap-2 mb-6">
           <button
@@ -1091,6 +1121,8 @@ export default function VirtualNumbersPage() {
               Get Another Number
             </button>
           </div>
+        )}
+        </>
         )}
         </>
         )}
