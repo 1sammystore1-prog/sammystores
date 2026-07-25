@@ -34,6 +34,10 @@ const transactionSchema = new Schema<ITransaction>({
       'wallet_fund',       // app/api/wallet/fund-paystack, verify-paystack
       'welcome_bonus',     // app/api/wallet/verify-paystack (first-deposit bonus)
       'referral_bonus',    // lib/neurapayCredit.ts (referrer's ₦500 on referred user's first deposit)
+      'coupon_discount',   // app/api/cart/checkout/route.ts (was MISSING - every coupon redemption
+                            // was throwing an unhandled ValidationError AFTER the wallet was already
+                            // correctly credited, showing the customer a false "checkout failed" error)
+      'tier_discount',     // app/api/cart/checkout/route.ts (automatic loyalty tier discount - lib/loyalty.ts)
       'virtual_number',    // app/api/numbers/tiger/buy, dashboard/stats
     ]
   },

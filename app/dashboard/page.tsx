@@ -106,6 +106,7 @@ export default function DashboardPage() {
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [recentNumbers, setRecentNumbers] = useState<RecentNumber[]>([]);
   const [supportUnreadCount, setSupportUnreadCount] = useState(0);
+  const [loyalty, setLoyalty] = useState<{ tierName: string; discountPercent: number; nextTier: { name: string; amountToReach: number } | null } | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -142,9 +143,20 @@ export default function DashboardPage() {
       }
     };
 
+    const fetchLoyalty = async () => {
+      const res = await fetch('/api/account/loyalty', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLoyalty({ tierName: data.tierName, discountPercent: data.discountPercent, nextTier: data.nextTier });
+      }
+    };
+
     fetchBalance();
     fetchStats();
     fetchSupportUnread();
+    fetchLoyalty();
   }, []);
 
   return (
@@ -157,7 +169,7 @@ export default function DashboardPage() {
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Dashboard</h1>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <div className="grid md:grid-cols-4 gap-6 mb-8">
             <div className="card p-6 bg-gradient-to-br from-orange-50 to-white">
               <h3 className="text-[#f97316] text-sm font-semibold mb-2">Wallet Balance</h3>
               <p className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">₦{balance.toLocaleString()}.00</p>
@@ -178,6 +190,28 @@ export default function DashboardPage() {
               <h3 className="text-gray-500 text-sm font-semibold mb-2">Total Transactions</h3>
               <p className="text-3xl md:text-4xl font-bold text-gray-800">{totalTransactions}</p>
             </div>
+
+            <div className="card p-6 bg-gradient-to-br from-purple-50 to-white">
+              <h3 className="text-purple-600 text-sm font-semibold mb-2">Loyalty Tier</h3>
+              {loyalty ? (
+                <>
+                  <p className="text-2xl font-bold text-gray-800 mb-1">{loyalty.tierName}</p>
+                  <p className="text-sm text-gray-600 mb-2">
+                    {loyalty.discountPercent > 0
+                      ? `${loyalty.discountPercent}% off every purchase, automatically`
+                      : 'Spend to unlock discounts'}
+                  </p>
+                  {loyalty.nextTier && (
+                    <p className="text-xs text-gray-400">
+                      ₦{loyalty.nextTier.amountToReach.toLocaleString()} more to reach {loyalty.nextTier.name}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-gray-400">Loading...</p>
+              )}
+            </div>
+          </div>
 
             <div className="card p-6">
               <h3 className="text-gray-500 text-sm font-semibold mb-2">Active Numbers</h3>

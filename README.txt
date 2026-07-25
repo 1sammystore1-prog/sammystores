@@ -1,54 +1,62 @@
-Reply to support tickets directly from Telegram
-====================================================
-New:     lib/ticketReply.ts                       (shared reply logic)
-New:     app/api/webhooks/telegram/route.ts        (receives your replies)
-Updated: app/api/admin/tickets/[id]/route.ts       (now uses the shared helper)
-Updated: app/api/support/tickets/route.ts          (notification includes Ticket ID)
-Updated: app/api/support/tickets/[id]/route.ts     (was MISSING a notification
-                                                     entirely when a customer
-                                                     replied to an existing
-                                                     ticket - only new tickets
-                                                     notified you before; fixed)
-Updated: app/api/support/chat/route.ts             (notification includes Ticket ID)
+Email Verification + Loyalty/Tier System
+============================================
 
-HOW IT WORKS:
-Every ticket notification Telegram sends you now ends with a line like
-"Ticket ID: 64f1a2b3c4d5e6f7a8b9c0d1". To reply, use Telegram's native
-"Reply" feature (swipe or long-press the notification message) and type
-your answer - your reply gets posted to that exact ticket, the customer
-gets emailed, and Telegram confirms with a ✅ message back to you. No
-need to open the website or admin panel at all.
+PART 1 - EMAIL VERIFICATION
+New:     app/api/auth/verify-email/route.ts       (validates the emailed link)
+New:     app/api/auth/resend-verification/route.ts (logged-in users can request a fresh link)
+New:     app/verify-email/page.tsx                 (lands here from the emailed link)
+Updated: models/User.ts                            (emailVerified + token fields)
+Updated: lib/email.ts                               (sendVerificationEmail)
+Updated: app/api/auth/register/route.ts             (sends the verification email on signup)
+Updated: app/api/account/me/route.ts                (returns emailVerified)
+Updated: app/settings/page.tsx                      (Verified/Unverified badge + resend button)
 
-SETUP REQUIRED (two steps):
+How it works: same secure pattern as password reset - only a SHA-256
+hash of a random token is ever stored, the raw token only exists in the
+emailed link, and it expires (24 hours). Existing accounts (before this
+feature existed) are NEVER retroactively required to verify - the check
+everywhere is `emailVerified === false` specifically, so an account
+with the field simply absent (every pre-existing user) is treated as
+verified and never nagged.
 
-1. Add a new env var - TELEGRAM_WEBHOOK_SECRET - to BOTH .env.local and
-   Vercel. This is just a random string YOU make up (not from Telegram),
-   used to verify incoming webhook calls are really from Telegram and
-   not someone else hitting your endpoint. Generate one with:
-     node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
+PART 2 - LOYALTY / TIER SYSTEM
+New:     lib/loyalty.ts                  (4 tiers based on lifetime product spend)
+New:     app/api/account/loyalty/route.ts (status endpoint for the dashboard card)
+Updated: models/Transaction.ts            (adds 'tier_discount' type - AND fixes a
+                                           separate, already-live bug: 'coupon_discount'
+                                           was ALSO missing from this enum, silently
+                                           crashing every successful coupon checkout
+                                           with a false "failed" error after the
+                                           discount had already been correctly applied)
+Updated: app/api/cart/checkout/route.ts   (automatically credits the tier discount
+                                           on every purchase, no code needed)
+Updated: app/dashboard/page.tsx           (new "Loyalty Tier" card)
 
-2. Register your webhook URL with Telegram (ONE-TIME, run this yourself
-   in any terminal - it's a direct call to Telegram's API, not something
-   that runs in your app). Replace the bracketed parts with your real
-   values:
+Tiers (lifetime spend on actual products - SMM/accounts/logs/numbers,
+NOT wallet funding itself):
+  Bronze:    ₦0+         -> 0% off
+  Silver:    ₦25,000+    -> 2% off
+  Gold:      ₦100,000+   -> 4% off
+  Platinum:  ₦250,000+   -> 7% off
 
-     curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
-       -d "url=https://yourdomain.com/api/webhooks/telegram" \
-       -d "secret_token=<THE_TELEGRAM_WEBHOOK_SECRET_YOU_JUST_MADE>"
-
-   You should get back {"ok":true,"result":true,...}. That's it - Telegram
-   now forwards every message sent to your bot to this endpoint.
+The discount is applied automatically as a wallet credit-back right
+after checkout, the same mechanism as a coupon - no code to enter. It
+stacks additively with a coupon (both computed off the same gross spend
+figure), not multiplicatively. Tier is recalculated live on every
+checkout (not cached), so crossing into a new tier mid-purchase applies
+that tier's discount immediately.
 
 HOW TO USE:
 1. Upload to repo root in Codespace.
-2. unzip -o telegram-ticket-replies.zip -d .
-   rm telegram-ticket-replies.zip
-3. Add TELEGRAM_WEBHOOK_SECRET to .env.local (see step 1 above).
+2. unzip -o email-verification-and-loyalty.zip -d .
+   rm email-verification-and-loyalty.zip
+3. npm run dev - test:
+   a. Register a new test account, check the verification email arrives,
+      click it, confirm /verify-email shows success.
+   b. Check Settings shows "Verified" after that.
+   c. Make a real test purchase, confirm the wallet gets credited back
+      the tier discount (check /admin transactions or your own history).
+   d. Check the Dashboard shows the new Loyalty Tier card.
 4. git add -A
-   git commit -m "Add Telegram reply support for tickets"
+   git commit -m "Add email verification and loyalty tier system; fix coupon_discount enum bug"
    git push
-5. Add TELEGRAM_WEBHOOK_SECRET to Vercel's env vars too, redeploy.
-6. Run the setWebhook curl command above ONCE.
-7. Test: wait for (or trigger) a ticket notification in Telegram, reply
-   to it, confirm you get the ✅ confirmation and the reply shows up on
-   the ticket in the admin panel / customer's support page.

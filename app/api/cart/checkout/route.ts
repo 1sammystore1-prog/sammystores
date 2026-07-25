@@ -8,6 +8,7 @@ import User from '@/models/User';
 import Transaction from '@/models/Transaction';
 import Cart from '@/models/Cart';
 import { getMarkups, computeMarkup, toNgn } from '@/lib/pricing';
+import { getLifetimeSpend, getTierForSpend } from '@/lib/loyalty';
 import crypto from 'crypto';
 
 type CheckoutResult = { productId: string; name: string; success: boolean; error?: string };
@@ -311,11 +312,20 @@ export async function POST(request: Request) {
 
   let finalUser = await User.findById(userId);
   const allSucceeded = results.every((r) => r.success);
+  const anySucceeded = results.some((r) => r.success);
+
+  // Captured ONCE, right after the purchase loop and before either
+  // discount below runs - this is the pure gross amount spent on
+  // PRODUCTS this checkout, unaffected by the coupon/tier credits that
+  // are about to be added back to the wallet. Both discounts are
+  // computed off this same figure rather than each other, so using both
+  // a coupon AND being a loyalty tier doesn't compound multiplicatively
+  // in a confusing way - each is a flat percentage of the same base.
+  const grossSpentThisCheckout = finalUser ? startingBalance - finalUser.walletBalance : 0;
 
   let couponApplied: { code: string; discountAmount: number } | null = null;
-  const anySucceeded = results.some((r) => r.success);
-  if (couponCode && anySucceeded && finalUser) {
-    const totalSpent = startingBalance - finalUser.walletBalance;
+  if (couponCode && anySucceeded && finalUser && grossSpentThisCheckout > 0) {
+    const totalSpent = grossSpentThisCheckout;
     if (totalSpent > 0) {
       const { validateCoupon, markCouponRedeemed } = await import('@/lib/coupon');
       const validation = await validateCoupon(couponCode, userId, totalSpent);
@@ -332,17 +342,68 @@ export async function POST(request: Request) {
             { $inc: { walletBalance: validation.discountAmount } },
             { returnDocument: 'after' }
           );
-          await Transaction.create({
-            userId,
-            type: 'coupon_discount',
-            description: `Coupon ${validation.coupon.code} applied`,
-            amount: validation.discountAmount,
-            status: 'success',
-            metadata: { couponCode: validation.coupon.code },
-          });
+          // Wrapped separately: the wallet credit above already succeeded,
+          // so a failure recording this Transaction (e.g. a future enum
+          // mismatch, same class of bug this line just got added to fix)
+          // must never crash the whole checkout response after the
+          // customer's purchase and discount already went through fine.
+          try {
+            await Transaction.create({
+              userId,
+              type: 'coupon_discount',
+              description: `Coupon ${validation.coupon.code} applied`,
+              amount: validation.discountAmount,
+              status: 'success',
+              metadata: { couponCode: validation.coupon.code },
+            });
+          } catch (txError: any) {
+            console.error('Failed to record coupon_discount Transaction:', txError.message);
+          }
           couponApplied = { code: validation.coupon.code, discountAmount: validation.discountAmount };
         }
       }
+    }
+  }
+
+  // Automatic loyalty tier discount - no code needed, unlike coupons.
+  // Based on LIFETIME spend (including this checkout's purchases, so a
+  // purchase that crosses into a new tier gets that tier's discount
+  // immediately rather than "next time"), applied as a flat percentage
+  // of the same gross-spend figure the coupon discount used above - the
+  // two stack additively, not multiplicatively.
+  let tierApplied: { tierName: string; discountPercent: number; discountAmount: number } | null = null;
+  if (anySucceeded && finalUser && grossSpentThisCheckout > 0) {
+    try {
+      const lifetimeSpend = await getLifetimeSpend(userId);
+      const tier = getTierForSpend(lifetimeSpend);
+      if (tier.discountPercent > 0) {
+        const tierDiscountAmount = Math.round(grossSpentThisCheckout * (tier.discountPercent / 100));
+        if (tierDiscountAmount > 0) {
+          finalUser = await User.findByIdAndUpdate(
+            userId,
+            { $inc: { walletBalance: tierDiscountAmount } },
+            { returnDocument: 'after' }
+          );
+          try {
+            await Transaction.create({
+              userId,
+              type: 'tier_discount',
+              description: `${tier.name} loyalty discount (${tier.discountPercent}%)`,
+              amount: tierDiscountAmount,
+              status: 'success',
+              metadata: { tierName: tier.name, discountPercent: tier.discountPercent },
+            });
+          } catch (txError: any) {
+            console.error('Failed to record tier_discount Transaction:', txError.message);
+          }
+          tierApplied = { tierName: tier.name, discountPercent: tier.discountPercent, discountAmount: tierDiscountAmount };
+        }
+      }
+    } catch (tierError: any) {
+      // Loyalty discount is a bonus on top of a purchase that already
+      // succeeded - a failure computing it must never affect the
+      // response for the purchase itself.
+      console.error('Loyalty tier discount error:', tierError.message);
     }
   }
 
@@ -352,5 +413,6 @@ export async function POST(request: Request) {
     results,
     newBalance: finalUser?.walletBalance ?? null,
     couponApplied,
+    tierApplied,
   });
 }
