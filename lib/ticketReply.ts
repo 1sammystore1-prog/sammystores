@@ -22,7 +22,7 @@ export async function replyToTicketAsAdmin(
   }
 
   if (status && ['open', 'pending', 'closed'].includes(status)) {
-    ticket.status = status;
+    ticket.status = status as 'open' | 'pending' | 'closed';
   } else if (message?.trim()) {
     ticket.status = 'open';
   }
