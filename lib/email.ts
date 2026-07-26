@@ -59,7 +59,7 @@ export async function sendOrderConfirmationEmail(params: {
       <tr><td style="padding: 6px 0; color: #6b7280;">Quantity</td><td style="padding: 6px 0; text-align: right;">${quantity}</td></tr>
       <tr><td style="padding: 6px 0; color: #6b7280;">Amount</td><td style="padding: 6px 0; text-align: right;">₦${amount.toLocaleString()}</td></tr>
     </table>
-    <p style="margin-top: 16px;">You can view full order details in your <a href="https://sammystorelogs.com/orders">order history</a>.</p>
+    <p style="margin-top: 16px;">You can view full order details in your <a href="https://www.sammystorelogs.com/orders">order history</a>.</p>
   `);
   return sendEmail(to, `Order Confirmed - ${productName}`, html);
 }
@@ -119,7 +119,7 @@ export async function sendTicketReplyEmail(params: {
   const html = wrapTemplate('Support Reply', `
     <p>You have a new reply on your support ticket: <strong>${subject}</strong></p>
     <div style="background: #f9fafb; border-radius: 8px; padding: 12px; margin-top: 12px; white-space: pre-wrap;">${message}</div>
-    <p style="margin-top: 16px;">View the full conversation in your <a href="https://sammystorelogs.com/support">support ticket</a>.</p>
+    <p style="margin-top: 16px;">View the full conversation in your <a href="https://www.sammystorelogs.com/support">support ticket</a>.</p>
   `);
   return sendEmail(to, `New reply: ${subject}`, html);
 }

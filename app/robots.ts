@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/admin', '/api', '/dashboard', '/cart', '/orders', '/settings'],
     },
-    sitemap: 'https://sammystorelogs.com/sitemap.xml',
+    sitemap: 'https://www.sammystorelogs.com/sitemap.xml',
   };
 }
