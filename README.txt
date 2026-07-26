@@ -1,60 +1,56 @@
-Blog + Referral Banner + Split History/Orders (mobile-friendly)
-======================================================================
+1) ReferralBanner fix + 2) Analytics Dashboard + 3) Promo/Event Banner
+==========================================================================
 
-PART 1 - Split Orders / Transactions / Numbers into 3 separate views
-Updated: app/api/orders/route.ts              (now filtered to account_purchase + smm only)
-Updated: app/api/wallet/transactions/route.ts (now filtered to wallet-money types only)
-Updated: app/orders/page.tsx                  (rewritten as mobile card layout, was a raw table)
-Updated: app/history/page.tsx                 (rewritten as mobile card layout, friendly labels,
-                                               credit/debit color-coded amounts)
-Updated: components/NumbersHistory.tsx        (cross-links to the other two)
+PART 1 - ReferralBanner quick fix
+Updated: components/ReferralBanner.tsx
+Was re-fetching /api/account/referrals on EVERY page navigation. Now
+caches the result in memory for the session - fetched once, reused on
+every subsequent navigation until a full page refresh.
 
-Before: /orders and /history both showed the EXACT SAME unfiltered mix
-of every transaction type in a table that required horizontal scrolling
-on mobile - genuinely hard to use on a phone and confusing to parse.
+PART 2 - Analytics Dashboard (admin)
+New: app/api/admin/analytics/route.ts  (aggregates all the numbers)
+New: app/admin/analytics/page.tsx      (charts, using chart.js - already
+                                        an installed dependency, just
+                                        never wired up until now)
+Updated: components/AdminSidebar.tsx   (adds "Analytics" nav link)
 
-Now: three genuinely separate, cross-linked sections:
-  - Order History (/orders)     -> accounts, logs, SMM purchases
-  - Transaction History (/history) -> wallet funding, bonuses, discounts
-  - Numbers History (/numbers, History tab) -> virtual number purchases
-    (unchanged location - it already had its own dedicated Check/Cancel
-    actions, so it stays where it is, just now cross-linked from the
-    other two)
-Each page cross-links to the other two ("Looking for X? →") so nobody
-gets stuck on the wrong page wondering where something went.
+Shows: revenue over the last 30 days (line chart), new signups over the
+last 30 days (bar chart), revenue split by category (Accounts & Logs /
+SMM / Virtual Numbers), top 10 best-selling individual products/services
+by revenue, and this-month-vs-last-month growth percentage.
 
-PART 2 - Referral banner (more visible than the buried /referrals page)
-New: components/ReferralBanner.tsx
-Updated: app/layout.tsx (renders it globally, right below the announcement banner)
+PART 3 - Promo / Event Banner ("fun" sitewide banner + ad placements)
+New: models/PromoBanner.ts
+New: app/api/promo-banner/route.ts            (public - returns the
+                                               currently active one)
+New: app/api/admin/promo-banner/route.ts      (admin list + create)
+New: app/api/admin/promo-banner/[id]/route.ts (admin toggle/edit/delete)
+New: components/PromoBanner.tsx               (the banner itself)
+New: app/admin/promo-banner/page.tsx          (admin management UI)
+Updated: app/layout.tsx                       (renders it site-wide, at
+                                               the very top)
+Updated: components/AdminSidebar.tsx          (adds nav link)
 
-Shows a compact "Earn ₦500 per referral" banner to logged-in users on
-every page except admin/login/register/the referrals page itself (no
-point promoting it there). Dismissing hides it until tomorrow, not
-forever - the point is repeated visibility, not a one-time nag.
+What it's for: a festive/celebratory/sale banner for special occasions
+(New Year, a flash sale, a milestone), OR an ad placement you sell to
+someone else (their message + optional link + custom brand colors via
+the "Custom colors" theme option). Only one shows at a time. Optional
+start/end date lets you schedule it in advance so it turns on and off
+automatically without you needing to remember. 4 presets (Festive, Sale,
+Celebration, Ad) plus fully custom background/text colors.
 
-PART 3 - Blog (SEO content)
-New: lib/blogPosts.ts       (4 articles targeting real search terms)
-New: app/blog/page.tsx      (listing page)
-New: app/blog/[slug]/page.tsx (individual post pages, proper per-post SEO metadata)
-Updated: app/sitemap.ts     (blog posts now included)
-Updated: components/Footer.tsx (adds a Blog link)
-
-Articles cover: virtual numbers for WhatsApp/Telegram verification, SMM
-panels explained, what to check before buying a social media account,
-and why bank transfer beats cards for funding a wallet in Nigeria - each
-written as genuinely useful content (not keyword-stuffed), linking back
-to the relevant product pages at the end.
+Manage it at /admin/promo-banner - same style as your existing
+Announcements admin page.
 
 HOW TO USE:
 1. Upload to repo root in Codespace.
-2. unzip -o blog-referral-history-split.zip -d .
-   rm blog-referral-history-split.zip
+2. unzip -o analytics-and-promo-banner.zip -d .
+   rm analytics-and-promo-banner.zip
 3. npm run dev - check:
-   a. /orders shows only account/SMM purchases, as mobile cards
-   b. /history shows only wallet activity, as mobile cards
-   c. /numbers History tab still works, now with cross-links
-   d. The orange referral banner appears near the top of pages
-   e. /blog shows the 4 articles, each with its own working page
+   a. /admin/analytics shows charts (will be mostly empty until real
+      sales data accumulates over the next 30 days)
+   b. /admin/promo-banner - create a test banner, confirm it shows up
+      site-wide immediately, dismiss it, confirm it stays dismissed
 4. git add -A
-   git commit -m "Split orders/transactions/numbers history; add referral banner and blog"
+   git commit -m "Add analytics dashboard, promo/event banner, and referral banner fetch fix"
    git push

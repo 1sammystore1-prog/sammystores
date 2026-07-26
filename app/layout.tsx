@@ -7,6 +7,7 @@ import SocialProofPopup from "@/components/SocialProofPopup";
 import SessionGuard from "@/components/SessionGuard";
 import Footer from "@/components/Footer";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
+import PromoBanner from "@/components/PromoBanner";
 import ReferralBanner from "@/components/ReferralBanner";
 import { SidebarProvider } from "@/lib/sidebarContext";
 
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <SidebarProvider>
           <SessionGuard />
+          <PromoBanner />
           <AnnouncementBanner />
           <ReferralBanner />
           <div className="pb-16 md:pb-0 flex flex-col min-h-full">
