@@ -43,7 +43,7 @@ export default function ReferralBanner() {
 
   if (!visible) return null;
 
-  const referralLink = `https://sammystorelogs.com/register?ref=${referralCode}`;
+  const referralLink = `https://www.sammystorelogs.com/register?ref=${referralCode}`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(referralLink);

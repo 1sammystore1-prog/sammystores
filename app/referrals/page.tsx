@@ -36,7 +36,7 @@ export default function ReferralsPage() {
   }, []);
 
   const referralLink = referralCode
-    ? `https://sammystorelogs.com/register?ref=${referralCode}`
+    ? `https://www.sammystorelogs.com/register?ref=${referralCode}`
     : '';
 
   const handleCopy = () => {

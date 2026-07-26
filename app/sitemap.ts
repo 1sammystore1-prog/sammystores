@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { BLOG_POSTS } from '@/lib/blogPosts';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://sammystorelogs.com';
+  const baseUrl = 'https://www.sammystorelogs.com';
   const staticRoutes = [
     '',
     '/numbers',
