@@ -5,8 +5,10 @@ import { usePathname } from 'next/navigation';
 
 const LINKS = [
   { href: '/admin', label: 'Dashboard', icon: '📊' },
+  { href: '/admin/analytics', label: 'Analytics', icon: '📈' },
   { href: '/admin/tickets', label: 'Tickets', icon: '🎫' },
   { href: '/admin/announcements', label: 'Announcements', icon: '📢' },
+  { href: '/admin/promo-banner', label: 'Promo Banner', icon: '🎉' },
   { href: '/admin/catalog', label: 'My Catalog', icon: '📦' },
   { href: '/admin/coupons', label: 'Coupons', icon: '🏷️' },
 ];

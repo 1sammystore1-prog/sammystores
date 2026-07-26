@@ -11,6 +11,13 @@ import { usePathname } from 'next/navigation';
 const DISMISS_KEY = 'referralBannerDismissedDate';
 const HIDDEN_PATHS = ['/admin', '/login', '/register', '/referrals'];
 
+// Module-level cache (survives across navigations within the same page
+// load, resets on a full page refresh) - the referral code never changes
+// for a given user, so there's no reason to re-fetch it on every single
+// route change just to decide whether to show this banner.
+let cachedReferralCode: string | null = null;
+let cachedFetchAttempted = false;
+
 export default function ReferralBanner() {
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
@@ -25,15 +32,27 @@ export default function ReferralBanner() {
     const today = new Date().toDateString();
     if (localStorage.getItem(DISMISS_KEY) === today) return;
 
+    if (cachedFetchAttempted) {
+      if (cachedReferralCode) {
+        setReferralCode(cachedReferralCode);
+        setVisible(true);
+      }
+      return;
+    }
+
+    cachedFetchAttempted = true;
     fetch('/api/account/referrals', { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.referralCode) {
+          cachedReferralCode = data.referralCode;
           setReferralCode(data.referralCode);
           setVisible(true);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        cachedFetchAttempted = false; // allow retrying on a later navigation if this one failed
+      });
   }, [pathname]);
 
   const dismiss = () => {
