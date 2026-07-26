@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 interface HistoryOrder {
   transactionId: string;
@@ -103,11 +104,27 @@ export default function NumbersHistory() {
   }
 
   if (orders.length === 0) {
-    return <p className="text-gray-400 text-sm text-center py-8">No numbers purchased yet.</p>;
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-400 text-sm mb-2">No numbers purchased yet.</p>
+        <Link href="/orders" className="text-[#f97316] text-xs font-semibold hover:underline">
+          View Order History (accounts &amp; SMM) →
+        </Link>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap gap-3 text-xs">
+        <Link href="/orders" className="text-[#f97316] font-semibold hover:underline">
+          Order History (accounts &amp; SMM) →
+        </Link>
+        <span className="text-gray-600">|</span>
+        <Link href="/history" className="text-[#f97316] font-semibold hover:underline">
+          Transaction History (wallet) →
+        </Link>
+      </div>
       {orders.map((order) => {
         const rs = rowState[order.transactionId] || {};
         return (
