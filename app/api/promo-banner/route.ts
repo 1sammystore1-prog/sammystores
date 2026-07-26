@@ -14,16 +14,27 @@ export async function GET() {
   await dbConnect();
 
   const now = new Date();
-  const banner = await PromoBanner.findOne({
-    active: true,
-    $and: [
-      { $or: [{ startDate: null }, { startDate: { $lte: now } }] },
-      { $or: [{ endDate: null }, { endDate: { $gte: now } }] },
-    ],
-  })
+
+  // Fetch all active banners (there should usually be just one or a
+  // handful) and filter the date window in JS rather than via nested
+  // Mongo operators - simpler to reason about and to debug, and the
+  // dataset here is always tiny.
+  const activeBanners = await PromoBanner.find({ active: true })
     .sort({ createdAt: -1 })
-    .select('message emoji linkUrl linkLabel theme backgroundColor textColor')
+    .select('message emoji linkUrl linkLabel theme backgroundColor textColor startDate endDate')
     .lean();
 
-  return NextResponse.json({ success: true, banner: banner || null });
+  const qualifying = activeBanners.filter((b: any) => {
+    const afterStart = !b.startDate || new Date(b.startDate) <= now;
+    const beforeEnd = !b.endDate || new Date(b.endDate) >= now;
+    return afterStart && beforeEnd;
+  });
+
+  console.log(
+    `[promo-banner] active banners: ${activeBanners.length}, qualifying (within date window): ${qualifying.length}`,
+    activeBanners.map((b: any) => ({ id: b._id, startDate: b.startDate, endDate: b.endDate }))
+  );
+
+  const banner = qualifying[0] || null;
+  return NextResponse.json({ success: true, banner });
 }
