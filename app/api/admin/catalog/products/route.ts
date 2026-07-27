@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   const admin = await verifyAdmin(request);
   if (!admin) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-  const { name, category, price, description, instructions } = await request.json();
+  const { name, category, price, description, instructions, imageUrl } = await request.json();
 
   if (!name || !category || price === undefined || price === null) {
     return NextResponse.json({ success: false, error: 'Name, category, and price are required' }, { status: 400 });
@@ -46,12 +46,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: 'Price must be a positive number' }, { status: 400 });
   }
 
+  // Same validation as ticket screenshot attachments - re-checked here
+  // since a client-side size check can be bypassed.
+  let cleanImageUrl = '';
+  if (imageUrl) {
+    const isImageDataUri = /^data:image\/(png|jpe?g|webp|gif);base64,/.test(imageUrl);
+    const approxBytes = (imageUrl.length * 3) / 4;
+    if (!isImageDataUri) {
+      return NextResponse.json({ success: false, error: 'Product image must be an image' }, { status: 400 });
+    }
+    if (approxBytes > 5 * 1024 * 1024) {
+      return NextResponse.json({ success: false, error: 'Product image must be under 5MB' }, { status: 400 });
+    }
+    cleanImageUrl = imageUrl;
+  }
+
   const product = await CatalogProduct.create({
     name: String(name).trim(),
     category: String(category).trim(),
     price: numericPrice,
     description: description || '',
     instructions: instructions || '',
+    imageUrl: cleanImageUrl,
     active: true,
   });
 

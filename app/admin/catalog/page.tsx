@@ -10,6 +10,7 @@ interface Product {
   price: number;
   description?: string;
   instructions?: string;
+  imageUrl?: string;
   active: boolean;
   availableCount: number;
   soldCount: number;
@@ -26,6 +27,7 @@ export default function AdminCatalogPage() {
   const [price, setPrice] = useState('');
   const [description, setDescription] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const [stockProductId, setStockProductId] = useState<string | null>(null);
@@ -38,7 +40,30 @@ export default function AdminCatalogPage() {
   const [editPrice, setEditPrice] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editInstructions, setEditInstructions] = useState('');
+  const [editImageUrl, setEditImageUrl] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+
+  const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB
+
+  // Shared by the product-image upload AND the stock-item document
+  // upload below - reads any file as a base64 data URI. For the product
+  // image, the result replaces the image state directly. For stock
+  // items, the caller appends it as a new line in the credentials
+  // textarea instead (each line becomes its own sellable unit).
+  const readFileAsDataUri = (file: File, onSuccess: (dataUri: string) => void, isImage: boolean) => {
+    if (isImage && !file.type.startsWith('image/')) {
+      setError('Please select an image file.');
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError('File is too large - please use one under 5MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onSuccess(reader.result as string);
+    reader.onerror = () => setError('Failed to read the file. Please try again.');
+    reader.readAsDataURL(file);
+  };
 
   const authHeaders = () => {
     const token = localStorage.getItem('token');
@@ -78,7 +103,7 @@ export default function AdminCatalogPage() {
       const res = await fetch('/api/admin/catalog/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ name, category, price, description, instructions }),
+        body: JSON.stringify({ name, category, price, description, instructions, imageUrl }),
       });
       const data = await res.json();
       if (data.success) {
@@ -87,6 +112,7 @@ export default function AdminCatalogPage() {
         setPrice('');
         setDescription('');
         setInstructions('');
+        setImageUrl(null);
         fetchProducts();
       } else {
         setError(data.error || 'Failed to create product');
@@ -122,6 +148,7 @@ export default function AdminCatalogPage() {
     setEditPrice(String(product.price));
     setEditDescription(product.description || '');
     setEditInstructions(product.instructions || '');
+    setEditImageUrl(product.imageUrl || null);
   };
 
   const handleEditSave = async (e: React.FormEvent, productId: string) => {
@@ -138,6 +165,7 @@ export default function AdminCatalogPage() {
           price: editPrice,
           description: editDescription,
           instructions: editInstructions,
+          imageUrl: editImageUrl || '',
         }),
       });
       const data = await res.json();
@@ -262,6 +290,29 @@ export default function AdminCatalogPage() {
               className="input-field md:col-span-2"
               rows={2}
             />
+            <div className="md:col-span-2 flex items-center gap-3">
+              {imageUrl && (
+                <img src={imageUrl} alt="Preview" className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+              )}
+              <label className="text-sm text-gray-500 hover:text-[#f97316] cursor-pointer inline-flex items-center gap-1 border border-gray-200 rounded-lg px-3 py-2">
+                📷 {imageUrl ? 'Change preview image' : 'Add preview image (optional)'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) readFileAsDataUri(file, setImageUrl, true);
+                  }}
+                />
+              </label>
+              {imageUrl && (
+                <button type="button" onClick={() => setImageUrl(null)} className="text-xs text-red-500 hover:underline">
+                  Remove
+                </button>
+              )}
+            </div>
             <button type="submit" disabled={creating} className="btn-primary md:col-span-2 disabled:opacity-50">
               {creating ? 'Creating...' : 'Create Product'}
             </button>
@@ -364,6 +415,29 @@ export default function AdminCatalogPage() {
                       className="input-field md:col-span-2"
                       rows={2}
                     />
+                    <div className="md:col-span-2 flex items-center gap-3">
+                      {editImageUrl && (
+                        <img src={editImageUrl} alt="Preview" className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+                      )}
+                      <label className="text-sm text-gray-500 hover:text-[#f97316] cursor-pointer inline-flex items-center gap-1 border border-gray-200 rounded-lg px-3 py-2">
+                        📷 {editImageUrl ? 'Change preview image' : 'Add preview image (optional)'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            if (file) readFileAsDataUri(file, setEditImageUrl, true);
+                          }}
+                        />
+                      </label>
+                      {editImageUrl && (
+                        <button type="button" onClick={() => setEditImageUrl(null)} className="text-xs text-red-500 hover:underline">
+                          Remove
+                        </button>
+                      )}
+                    </div>
                     <button type="submit" disabled={savingEdit} className="btn-primary md:col-span-2 disabled:opacity-50">
                       {savingEdit ? 'Saving...' : 'Update Product'}
                     </button>
@@ -373,16 +447,39 @@ export default function AdminCatalogPage() {
                 {stockProductId === product._id && (
                   <form onSubmit={handleAddStock} className="mt-4 border-t border-gray-100 pt-4">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Paste one account per line (any format - delivered to the buyer exactly as typed)
+                      Paste one account per line (any format - delivered to the buyer exactly as typed).
+                      For a document or link-based product (e.g. Working Formats, Working Pictures, Working
+                      Tools), each line can also be a link, or an uploaded file appended below - each line
+                      becomes one separately sellable unit.
                     </label>
                     <textarea
                       value={stockText}
                       onChange={(e) => setStockText(e.target.value)}
                       className="input-field font-mono text-sm"
                       rows={5}
-                      placeholder={'example1@gmail.com:password1\nexample2@gmail.com:password2'}
+                      placeholder={'example1@gmail.com:password1\nexample2@gmail.com:password2\nhttps://example.com/picture1.jpg'}
                       required
                     />
+                    <div className="flex items-center gap-3 mt-2">
+                      <label className="text-sm text-gray-500 hover:text-[#f97316] cursor-pointer inline-flex items-center gap-1 border border-gray-200 rounded-lg px-3 py-2">
+                        📎 Upload document/file as a new line
+                        <input
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            if (file) {
+                              readFileAsDataUri(
+                                file,
+                                (dataUri) => setStockText((prev) => (prev ? `${prev}\n${dataUri}` : dataUri)),
+                                false
+                              );
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
                     <button type="submit" disabled={addingStock} className="btn-primary mt-3 text-sm py-2 px-4 disabled:opacity-50">
                       {addingStock ? 'Adding...' : 'Add Stock'}
                     </button>

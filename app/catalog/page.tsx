@@ -11,7 +11,63 @@ interface Product {
   price: number;
   description?: string;
   instructions?: string;
+  imageUrl?: string;
   stock: number;
+}
+
+// A delivered "line" might be a plain credential (render as text + Copy,
+// unchanged), a base64 file (a Working Formats document upload - render
+// as a Download button, since dumping raw base64 text is useless), or a
+// URL (a Working Pictures link - render as a clickable Open Link, since
+// forcing a copy-paste into a new tab is needless friction).
+function DeliveredLine({ line }: { line: string }) {
+  const isDataUri = /^data:[^;]+;base64,/.test(line);
+  const isUrl = /^https?:\/\//i.test(line);
+
+  if (isDataUri) {
+    const mimeMatch = line.match(/^data:([^;]+);/);
+    const ext = mimeMatch ? mimeMatch[1].split('/')[1] || 'file' : 'file';
+    return (
+      <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 flex items-center justify-between gap-2">
+        <span className="text-gray-600 text-sm">📄 Document (.{ext})</span>
+        <a
+          href={line}
+          download={`file.${ext}`}
+          className="flex-shrink-0 px-2 py-1 text-xs rounded bg-white border border-gray-200 text-[#f97316] hover:bg-orange-50 font-semibold"
+        >
+          Download
+        </a>
+      </div>
+    );
+  }
+
+  if (isUrl) {
+    return (
+      <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 flex items-center justify-between gap-2">
+        <span className="text-gray-800 text-sm break-all">{line}</span>
+        <a
+          href={line}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-shrink-0 px-2 py-1 text-xs rounded bg-white border border-gray-200 text-[#f97316] hover:bg-orange-50 font-semibold"
+        >
+          Open
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 flex items-start justify-between gap-2">
+      <span className="text-gray-800 text-sm font-mono break-all whitespace-pre-wrap">{line}</span>
+      <button
+        onClick={() => navigator.clipboard.writeText(line)}
+        className="flex-shrink-0 px-2 py-1 text-xs rounded bg-white border border-gray-200 text-[#f97316] hover:bg-orange-50 font-semibold"
+      >
+        Copy
+      </button>
+    </div>
+  );
 }
 
 export default function CatalogPage() {
@@ -133,6 +189,13 @@ export default function CatalogPage() {
                   key={product.id}
                   className={`card p-6 ${product.stock === 0 ? 'opacity-60' : ''}`}
                 >
+                  {product.imageUrl && (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-full h-40 object-cover rounded-lg mb-3 border border-gray-100"
+                    />
+                  )}
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="inline-block text-xs font-semibold text-[#f97316] bg-primary-50 px-2 py-1 rounded-full">
                       {product.category}
@@ -183,18 +246,7 @@ export default function CatalogPage() {
                   .map((line) => line.trim())
                   .filter((line) => line.length > 0)
                   .map((line, idx) => (
-                    <div
-                      key={idx}
-                      className="border border-gray-200 rounded-lg p-3 bg-gray-50 flex items-start justify-between gap-2"
-                    >
-                      <span className="text-gray-800 text-sm font-mono break-all whitespace-pre-wrap">{line}</span>
-                      <button
-                        onClick={() => navigator.clipboard.writeText(line)}
-                        className="flex-shrink-0 px-2 py-1 text-xs rounded bg-white border border-gray-200 text-[#f97316] hover:bg-orange-50 font-semibold"
-                      >
-                        Copy
-                      </button>
-                    </div>
+                    <DeliveredLine key={idx} line={line} />
                   ))}
               </div>
             </div>

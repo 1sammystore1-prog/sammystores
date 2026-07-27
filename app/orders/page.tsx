@@ -59,15 +59,47 @@ function renderAccountData(accountData: any) {
   const entries = typeof accountData === 'object' ? Object.entries(accountData) : [['Details', accountData]];
   return (
     <div className="space-y-2">
-      {entries.map(([key, value]) => (
-        <div key={key} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-          <p className="text-gray-400 text-[10px] uppercase font-semibold mb-1">{key}</p>
-          <div className="flex items-start justify-between gap-2">
-            <span className="text-gray-800 text-sm break-all whitespace-pre-wrap">{String(value)}</span>
-            <CopyButton text={String(value)} />
+      {entries.map(([key, value]) => {
+        const text = String(value);
+        const isDataUri = /^data:[^;]+;base64,/.test(text);
+        const isUrl = /^https?:\/\//i.test(text);
+        return (
+          <div key={key} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+            <p className="text-gray-400 text-[10px] uppercase font-semibold mb-1">{key}</p>
+            {isDataUri ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-gray-600 text-sm">
+                  📄 Document (.{text.match(/^data:([^;]+);/)?.[1]?.split('/')[1] || 'file'})
+                </span>
+                <a
+                  href={text}
+                  download="file"
+                  className="shrink-0 px-2 py-1 text-xs rounded bg-white border border-gray-200 text-[#f97316] hover:bg-orange-50 font-semibold"
+                >
+                  Download
+                </a>
+              </div>
+            ) : isUrl ? (
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-gray-800 text-sm break-all">{text}</span>
+                <a
+                  href={text}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 px-2 py-1 text-xs rounded bg-white border border-gray-200 text-[#f97316] hover:bg-orange-50 font-semibold"
+                >
+                  Open
+                </a>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-gray-800 text-sm break-all whitespace-pre-wrap">{text}</span>
+                <CopyButton text={text} />
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

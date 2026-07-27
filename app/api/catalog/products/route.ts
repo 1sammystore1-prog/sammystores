@@ -22,6 +22,7 @@ export async function GET() {
     price: p.price,
     description: p.description,
     instructions: p.instructions,
+    imageUrl: p.imageUrl || '',
     stock: countMap[String(p._id)] || 0,
   }));
 

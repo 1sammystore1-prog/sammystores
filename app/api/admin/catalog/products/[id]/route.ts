@@ -25,6 +25,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     updates.price = numericPrice;
   }
+  if (body.imageUrl !== undefined) {
+    if (!body.imageUrl) {
+      updates.imageUrl = '';
+    } else {
+      const isImageDataUri = /^data:image\/(png|jpe?g|webp|gif);base64,/.test(body.imageUrl);
+      const approxBytes = (body.imageUrl.length * 3) / 4;
+      if (!isImageDataUri) {
+        return NextResponse.json({ success: false, error: 'Product image must be an image' }, { status: 400 });
+      }
+      if (approxBytes > 5 * 1024 * 1024) {
+        return NextResponse.json({ success: false, error: 'Product image must be under 5MB' }, { status: 400 });
+      }
+      updates.imageUrl = body.imageUrl;
+    }
+  }
 
   const product = await CatalogProduct.findByIdAndUpdate(id, { $set: updates }, { returnDocument: 'after' });
   if (!product) return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });

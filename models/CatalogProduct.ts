@@ -6,6 +6,11 @@ export interface ICatalogProduct extends Document {
   price: number;
   description?: string;
   instructions?: string;
+  // Optional preview image shown on the product card BEFORE purchase -
+  // e.g. a screenshot of the actual tool for a "Working Tools" listing.
+  // Stored as a base64 data URI (same approach as ticket attachments),
+  // no external file storage needed.
+  imageUrl?: string;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -20,6 +25,7 @@ const CatalogProductSchema: Schema<ICatalogProduct> = new Schema(
     price: { type: Number, required: true, min: 0 },
     description: { type: String, default: '' },
     instructions: { type: String, default: '' },
+    imageUrl: { type: String, default: '' },
     active: { type: Boolean, default: true },
   },
   { timestamps: true }
